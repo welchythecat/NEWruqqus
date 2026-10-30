@@ -11,7 +11,7 @@
 
 [![](https://img.shields.io/discord/599258778520518676)](https://discord.gg/U57jqnn) [![Twitter Follow](https://img.shields.io/twitter/follow/ruqqus?style=social)](https://twitter.com/ruqqus)
 
-# Ruqqus
+# NewRuqqus
 
 Ruqqus is a new, independent, 100% USA-based, free-speech-first social platform. In an era of censorship and quarantines, we are bringing First Amendment rights into the digital space.
 
