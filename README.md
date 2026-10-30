@@ -1,3 +1,5 @@
+<img width="1200" height="300" alt="NEWruqqus_text_logo" src="https://github.com/user-attachments/assets/8648830b-7345-4898-9e85-14da2fbaf33b" />
+
 ---
 
 <div align="center">
