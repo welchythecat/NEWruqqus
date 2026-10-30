@@ -13,11 +13,16 @@
 
 # NewRuqqus
 
-Ruqqus is a new, independent, 100% USA-based, free-speech-first social platform. In an era of censorship and quarantines, we are bringing First Amendment rights into the digital space.
+NewRuqqus is a new and improved fork of ruqqus, an independent, 100% USA-based, free-speech-first social platform. That In an era of censorship and quarantines, they were bringing First Amendment rights into the digital space and were bringing it back
 
-This repository is the live codebase for the Ruqqus website. Commits to master here are immediately loaded into the ruqqus staging site, then manually promoted to production.
+## Donate
 
-## Links
+**BTC** - `bc1qh4hgx2nnsye0lf2w6rar8wj3j3j4cdwc0nnr7h`
+
+**ETH** - `0x261df8c7CBDe616f335Dd81caB235Ec0bE914b2f`
+
+**SOL** - `8NAwwC7pTCteMrf61uoiQYTZAoYEurWJ51gYtCgdHuM2`
+
 
 [Main site](https://ruqqus.com)
 
