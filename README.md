@@ -4,7 +4,7 @@
 
 <div align="center">
   
-![Snyk Vulnerabilities for GitHub Repo](https://img.shields.io/snyk/vulnerabilities/github/ruqqus/ruqqus) [![Donate](https://img.shields.io/badge/Donate-Support%20this%20project-brightgreen?style=for-the-badge&logo=githubsponsors&logoColor=white)](#donate)
+![Snyk Vulnerabilities for GitHub Repo](https://img.shields.io/snyk/vulnerabilities/github/ruqqus/ruqqus) [![Donate](https://img.shields.io/badge/Donate-Support%20this%20project-success?style=plastic&logo=githubsponsors&logoColor=white)](#donate)
 
 
 ![GitHub language count](https://img.shields.io/github/languages/count/ruqqus/ruqqus) ![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/ruqqus/ruqqus)
