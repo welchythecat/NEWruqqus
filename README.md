@@ -6,7 +6,7 @@
   
 [![Donate](https://img.shields.io/badge/Donate-Support%20this%20project-success?style=plastic&logo=githubsponsors&logoColor=white)](#donate)
 
-[![Also check out your-repo-name](https://img.shields.io/badge/Also%20check%20out-your--repo--name-blue?style=plastic&logo=github&logoColor=white)](https://github.com/your-username/your-repo-name)
+[![Also check out REvoat](https://img.shields.io/badge/Also%20check%20out-your--repo--name-blue?style=plastic&logo=github&logoColor=white)](https://github.com/welchythecat/REvoat)
 
 ![GitHub language count](https://img.shields.io/github/languages/count/ruqqus/ruqqus) ![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/ruqqus/ruqqus)
 
