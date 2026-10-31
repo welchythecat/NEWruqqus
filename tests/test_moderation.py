@@ -24,6 +24,23 @@ def as_admin(make_user, level=3):
 
 
 def post_as(client, user, path, **fields):
+    """
+    POST ``path`` while authenticated as ``user``.
+
+    Logging in is not incidental to the request -- it is what sets
+    ``session["user_id"]`` and mints the ``session_id`` the formkey is derived
+    from.  A formkey alone does not authenticate, so a helper that skipped the
+    login could only ever exercise the "not logged in" branch of every route.
+    """
+    response = client.post(
+        "/login",
+        data={"username": user.username, "password": user.password, "redirect": "/"},
+    )
+    assert response.status_code == 302, (
+        f"login failed for {user.username!r}: "
+        f"{response.status_code} {response.data[:200]!r}"
+    )
+
     payload = dict(fields)
     payload.setdefault("formkey", formkey(client, user.id))
     return client.post(path, data=payload)
@@ -167,6 +184,10 @@ class TestBanUser:
         victim = as_user()
         admin = as_admin(make_user, level=3)
         post_as(client, admin, f"/api/ban_user/{victim.id}", reason="spam")
+
+        # `post_as` signs in as the admin and stays signed in, so sign back in
+        # as the victim to see what a banned account is allowed to do.
+        as_user(victim)
 
         response = client.get("/submit")
         assert response.status_code == 403

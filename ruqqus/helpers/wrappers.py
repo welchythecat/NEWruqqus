@@ -88,10 +88,18 @@ def admin_level_required(x):
 
             response= f(*args, v=v, **kwargs)
 
-            if isinstance(response, tuple):
+            # Views here return either an ordinary Flask value -- including a
+            # real response tuple like ("", 204) -- or a (response, model) pair
+            # whose second element is an ORM object, which Flask cannot read as
+            # a status or as headers.  Only the second kind gets unwrapped.
+            # Treating every tuple alike silently turned each 204 into a 200,
+            # because ("", 204)[0] is "" and Flask renders that as a 200 body.
+            if (isinstance(response, tuple)
+                    and len(response) == 2
+                    and not isinstance(response[1], (int, str, dict))):
                 return response[0]
-            else:
-                return response
+
+            return response
 
         wrapper.__name__=f.__name__
         return wrapper

@@ -3,12 +3,14 @@ from flask import render_template, session, request
 from time import strftime, time, gmtime
 from sqlalchemy import *
 from sqlalchemy.orm import relationship, deferred
+import sqlalchemy  # for sqlalchemy.inspect, unambiguous against the star import
 from os import environ
 from secrets import token_hex
 import random
 
 from ruqqus.helpers.base36 import *
 from ruqqus.helpers.security import *
+from ruqqus.helpers import security
 from ruqqus.helpers.lazy import lazy
 from .votes import Vote
 from .alts import Alt
@@ -98,10 +100,38 @@ class User(Base):
         return vote.vote_type
     
     def hash_password(self, password):
-        return generate_password_hash(password, method='pbkdf2:sha512', salt_length=8)
+        # Delegates to the single implementation in helpers.security.  The
+        # module-level `hash_password` that `import *` brought in is shadowed
+        # by this method name, so reach the module explicitly.
+        return security.hash_password(password)
 
     def verifyPass(self, password):
-        return check_password_hash(self.passhash, password)
+        ok = check_password_hash(self.passhash, password)
+        if ok:
+            self._upgrade_hash_if_needed(password)
+        return ok
+
+    def _upgrade_hash_if_needed(self, password):
+        """
+        Silently move an old ``pbkdf2:sha512`` hash up to ``scrypt``.
+
+        Runs only after a successful password check, so it never locks anyone
+        out and never needs a forced reset.  Accounts already on ``scrypt``
+        return immediately, making this free on the common path.
+
+        Only touches rows already in the database.  Transient ``User``
+        objects -- which the test suite builds on purpose -- have nothing to
+        persist to, and must not be flushed into the session by a login check.
+        """
+        if self.passhash.startswith("scrypt:"):
+            return
+
+        if not sqlalchemy.inspect(self).persistent:
+            return
+
+        self.passhash = self.hash_password(password)
+        db.add(self)
+        db.commit()
         
     def rendered_userpage(self, v=None):
 

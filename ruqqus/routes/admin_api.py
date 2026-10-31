@@ -11,6 +11,15 @@ from ruqqus.__main__ import db, app
 @validate_formkey
 def ban_user(user_id, v):
 
+    # Path parameters arrive as strings but users.id is an integer.  psycopg 3
+    # binds a str as a typed VARCHAR parameter, and PostgreSQL then refuses to
+    # compare it to an integer column outright.  A non-numeric id is simply not
+    # a user, so it is a 400 like any other unknown id.
+    try:
+        user_id=int(user_id)
+    except (TypeError, ValueError):
+        abort(400)
+
     user=db.query(User).filter_by(id=user_id).first()
 
     if not user:
@@ -28,6 +37,12 @@ def ban_user(user_id, v):
 @admin_level_required(3)
 @validate_formkey
 def unban_user(user_id, v):
+
+    # As in ban_user: the path parameter is a string, users.id is an integer.
+    try:
+        user_id=int(user_id)
+    except (TypeError, ValueError):
+        abort(400)
 
     user=db.query(User).filter_by(id=user_id).first()
 

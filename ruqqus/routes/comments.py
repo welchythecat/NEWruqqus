@@ -81,7 +81,11 @@ def api_comment(v):
                                          parent_submission=parent_submission
                                          ).first()
     if existing:
-        return redirect(existing.permalink)
+        # Same target the create path returns at the end of this view, so a
+        # double-submit and a first submit both land on the post with the
+        # comment anchored.  The comment's own permalink is a different page,
+        # which made a repeat POST look like a different outcome.
+        return redirect(f"{existing.post.permalink}#comment-{existing.base36id}")
 
     #get parent item info
     parent_id=int(parent_fullname.split("_")[1], 36)

@@ -7,6 +7,7 @@ Coverage of ``routes/login.py`` and the ``User`` password helpers.
 from __future__ import annotations
 
 import pytest
+from werkzeug.security import generate_password_hash
 
 from tests.conftest import db, formkey, signup_payload
 from ruqqus.classes import User
@@ -32,7 +33,7 @@ class TestPasswordHashing:
     def test_hash_carries_its_algorithm(self):
         """Werkzeug prefixes the method, so pre-existing hashes keep verifying."""
         user = User(username="hashme", password="hunter2hunter2")
-        assert user.passhash.startswith("pbkdf2:")
+        assert user.passhash.startswith("scrypt:")
 
     def test_two_users_same_password_different_hashes(self):
         a = User(username="useraaaa", password="samepassword")
@@ -50,6 +51,86 @@ class TestPasswordHashing:
     def test_verify_pass_rejects_empty_password(self):
         user = User(username="hashme", password="hunter2hunter2")
         assert user.verifyPass("") is False
+
+
+# --------------------------------------------------------------------------
+# Transparent hash upgrade (pbkdf2:sha512 -> scrypt)
+# --------------------------------------------------------------------------
+class TestPasswordHashUpgrade:
+    """
+    Accounts created before the switch to scrypt must keep working, and must
+    migrate themselves without a forced reset or a one-shot migration script.
+    """
+
+    @staticmethod
+    def _downgrade_to_pbkdf2(user_id: int, password: str) -> None:
+        """Rewrite a stored hash to the pre-scrypt algorithm, as it was."""
+        user = db.query(User).filter_by(id=user_id).first()
+        user.passhash = generate_password_hash(
+            password, method="pbkdf2:sha512", salt_length=8
+        )
+        db.commit()
+
+    def test_old_pbkdf2_hash_still_verifies(self, make_user):
+        """The whole point: nobody gets locked out by the upgrade."""
+        record = make_user(username="legacy1", password="correct-horse-battery")
+        self._downgrade_to_pbkdf2(record.id, record.password)
+
+        user = db.query(User).filter_by(id=record.id).first()
+        assert user.passhash.startswith("pbkdf2:")
+        assert user.verifyPass("correct-horse-battery") is True
+
+    def test_login_upgrades_old_hash_to_scrypt(self, make_user, login):
+        record = make_user(username="legacy2", password="correct-horse-battery")
+        self._downgrade_to_pbkdf2(record.id, record.password)
+
+        response = login(record)
+        assert response.status_code == 302
+
+        user = db.query(User).filter_by(id=record.id).first()
+        assert user.passhash.startswith("scrypt:"), (
+            "a successful login should have moved the hash off pbkdf2"
+        )
+
+    def test_upgrade_keeps_the_password_working(self, make_user, login):
+        """Upgrading must not change which password is accepted."""
+        record = make_user(username="legacy3", password="correct-horse-battery")
+        self._downgrade_to_pbkdf2(record.id, record.password)
+        login(record)
+
+        user = db.query(User).filter_by(id=record.id).first()
+        assert user.verifyPass("correct-horse-battery") is True
+        assert user.verifyPass("wrong-password") is False
+
+    def test_failed_login_does_not_upgrade_the_hash(self, client, make_user):
+        """Only a *successful* check may rewrite the stored secret."""
+        record = make_user(username="legacy4", password="correct-horse-battery")
+        self._downgrade_to_pbkdf2(record.id, record.password)
+
+        client.post("/login", data={"username": record.username, "password": "wrong"})
+
+        user = db.query(User).filter_by(id=record.id).first()
+        assert user.passhash.startswith("pbkdf2:")
+
+    def test_scrypt_hash_is_not_rewritten_on_every_login(self, make_user, login):
+        """The common path must stay free -- no needless rehash per request."""
+        record = make_user(username="modern1", password="correct-horse-battery")
+        before = db.query(User).filter_by(id=record.id).first().passhash
+        assert before.startswith("scrypt:")
+
+        login(record)
+
+        after = db.query(User).filter_by(id=record.id).first().passhash
+        assert after == before
+
+    def test_verify_does_not_flush_a_transient_user(self):
+        """Checking a password on a detached User must not INSERT it."""
+        before = db.query(User).count()
+
+        transient = User(username="ghostuser", password="correct-horse-battery")
+        assert transient.verifyPass("correct-horse-battery") is True
+
+        assert db.query(User).count() == before
 
 
 # --------------------------------------------------------------------------
@@ -156,9 +237,9 @@ class TestSession:
         assert response.status_code == 302
         assert location(response).endswith(f"/@{user.username}")
 
-    def test_logout_clears_the_session(self, client, as_user, formkey):
+    def test_logout_clears_the_session(self, client, as_user):
         user = as_user()
-        response = client.post("/logout", data={"formkey": formkey(user.id)})
+        response = client.post("/logout", data={"formkey": formkey(client, user.id)})
 
         assert response.status_code == 302
         with client.session_transaction() as sess:
@@ -177,7 +258,7 @@ class TestSession:
         """
         user = as_user()
         client.get("/robots.txt")
-        valid_key = formkey(user.id)
+        valid_key = formkey(client, user.id)
 
         # same user, different session -> the old key must stop working
         with client.session_transaction() as sess:
@@ -189,7 +270,7 @@ class TestSession:
     def test_logout_rejects_a_forged_formkey(self, client, as_user):
         user = as_user()
         assert client.post("/logout", data={"formkey": "0" * 32}).status_code == 401
-        assert formkey(user.id) != "0" * 32
+        assert formkey(client, user.id) != "0" * 32
 
 
 # --------------------------------------------------------------------------

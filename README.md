@@ -33,7 +33,7 @@ and macOS, and can be deployed to a VPS.**
 - [Contributing](#contributing)
 - [Known issues](#known-issues)
 - [License](#license)
-- [Donate](#Donate)
+- [Donate](#donate)
 
 ---
 
@@ -247,7 +247,7 @@ precedence over it.
 │   ├── templates/           Jinja2 templates — the original front end
 │   └── assets/              CSS (from SCSS), JavaScript, images
 ├── migrations/              Alembic migrations (0001_initial builds the schema)
-├── tests/                   Pytest suite (240 cases)
+├── tests/                   Pytest suite (246 cases)
 ├── scripts/                 create_admin.py, startup.sh, healthcheck.py,
 │                            migrate_old_db.py, css.sh
 ├── docs/                    Project documentation site
@@ -392,9 +392,9 @@ the visitor just sees an error. **Workaround:** create accounts with
 `scripts/create_admin.py`, which does not award badges. Full details and the
 suggested fix are in [MIGRATION_NOTES.md](MIGRATION_NOTES.md#4-database-changes).
 
-A number of security-hardening items (password hashing algorithm, CSRF coverage,
-cookie flags, open redirects, token expiry) are documented but not yet done —
-they were deliberately deferred. See
+A number of security-hardening items (CSRF coverage, cookie flags, open
+redirects, token expiry) are documented but not yet done — they were
+deliberately deferred. See
 [MIGRATION_NOTES.md §8](MIGRATION_NOTES.md#8-known-defects-and-deferred-work).
 
 ---

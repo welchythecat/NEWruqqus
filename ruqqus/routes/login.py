@@ -201,8 +201,18 @@ def sign_up_post(v):
     def new_signup(error):
 
         args={"error":error}
-        if request.form.get("referred_by"):
-            user=db.query(User).filter_by(id=request.form.get("referred_by")).first()
+
+        # Form values arrive as strings but users.id is an integer.  psycopg 3
+        # binds a str as a typed VARCHAR parameter, and PostgreSQL then refuses
+        # to compare it to an integer column outright.  Coerce first -- and note
+        # that "0" is a truthy string, so the guard has to be on the number.
+        try:
+            ref_id=int(request.form.get("referred_by", 0))
+        except (TypeError, ValueError):
+            ref_id=0
+
+        if ref_id:
+            user=db.query(User).filter_by(id=ref_id).first()
             if user:
                 args["ref"]=user.username
         
@@ -254,7 +264,11 @@ def sign_up_post(v):
     session.pop("signup_token")
 
     #get referral
-    ref_id = int(request.form.get("referred_by", 0))
+    # A non-numeric referral id is junk input, not a server error: ignore it.
+    try:
+        ref_id = int(request.form.get("referred_by", 0))
+    except (TypeError, ValueError):
+        ref_id = 0
     ref_id=None if not ref_id else ref_id
         
     #make new user

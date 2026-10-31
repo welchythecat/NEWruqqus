@@ -84,6 +84,20 @@ def submit_post(v):
     if not (parsed_url.scheme and parsed_url.netloc) and not request.form.get("body"):
         return render_template("submit.html", v=v, error="Please enter a URL or some text.")
 
+    #Force https for submitted urls.  This has to happen before the duplicate
+    #check below: the row stores the https form, so matching on the raw input
+    #never compared equal and the same link could be submitted over and over.
+    if request.form.get("url"):
+        new_url=ParseResult(scheme="https",
+                            netloc=parsed_url.netloc,
+                            path=parsed_url.path,
+                            params=parsed_url.params,
+                            query=parsed_url.query,
+                            fragment=parsed_url.fragment)
+        url=urlunparse(new_url)
+    else:
+        url=""
+
     #sanitize title
     title=sanitize(title, linkgen=False)
 
@@ -158,18 +172,6 @@ def submit_post(v):
         user_id=v.id
                 
                 
-    #Force https for submitted urls
-    if request.form.get("url"):
-        new_url=ParseResult(scheme="https",
-                            netloc=parsed_url.netloc,
-                            path=parsed_url.path,
-                            params=parsed_url.params,
-                            query=parsed_url.query,
-                            fragment=parsed_url.fragment)
-        url=urlunparse(new_url)
-    else:
-        url=""
-
     #now make new post
 
     body=request.form.get("body","")

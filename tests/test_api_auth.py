@@ -315,14 +315,10 @@ class TestPinnedDefects:
         response = client.get("/reset?id=1&token=x")
         assert response.status_code in (400, 404)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            "routes/login.py:252 does int(request.form['referred_by']) with a "
-            "0 default; a non-numeric value raises ValueError instead of being "
-            "ignored."
-        ),
-    )
+    # Fixed: routes/login.py now coerces referred_by through int() inside a
+    # try/except on both the success and the error path, so junk input is
+    # ignored instead of raising ValueError.  Unmarked so a regression here
+    # turns the test red again rather than silently XPASSing past it.
     def test_non_numeric_referred_by_is_not_a_500(self, client):
         from tests.conftest import signup_payload
 

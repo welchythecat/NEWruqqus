@@ -39,8 +39,8 @@ If you are installing from scratch you do not need this file — read
 | Schema source | `schema.txt` dump | Alembic migration `0001_initial` |
 | Configuration | hardcoded + Heroku config vars | environment variables + `.env` |
 | Deploy | Heroku only | Docker Compose, or bare metal; see [INSTALL.md](INSTALL.md) |
-| Tests | `test.py` (contained only `pass`) | 240 pytest cases + GitHub Actions |
-| Password hashing | `pbkdf2:sha512` | `pbkdf2:sha512` (unchanged — see §8) |
+| Tests | `test.py` (contained only `pass`) | 246 pytest cases + GitHub Actions |
+| Password hashing | `pbkdf2:sha512` | `scrypt`, with transparent upgrade of old hashes (see §8) |
 | Guilds (communities) | schema tables only, no code | **not implemented** — see §5 |
 
 Nothing in the front end was redesigned. Templates, CSS, Bootstrap 4 classes,
@@ -286,9 +286,40 @@ If you are upgrading a live original-Ruqqus database rather than starting fresh:
 
 ## 8. Known defects and deferred work
 
-These are **known and unfixed**. Each is pinned by an `xfail(strict=True)` test
-in `tests/`, which turns into a hard failure the moment it is fixed, so none of
-them can quietly rot into "looks green".
+This section is in two parts: what has been **fixed** since the first release,
+and what is still **known and unfixed**. Each remaining defect is pinned by an
+`xfail(strict=True)` test in `tests/`, which turns into a hard failure the
+moment it is fixed, so none of them can quietly rot into "looks green".
+
+### Fixed since the first release
+
+Recorded here because the v1.0.0 release notes and earlier revisions of this
+document said otherwise.
+
+- **Password hashing is now `scrypt`** — Werkzeug's default, `scrypt:32768:8:1`
+  (N=2^15, r=8, p=1), backed by `hashlib.scrypt` in the standard library, so
+  this adds no dependency. Existing `pbkdf2:sha512` hashes are deliberately
+  **not** invalidated: `check_password_hash` dispatches on the algorithm name
+  stored in the hash string, and `User._upgrade_hash_if_needed` re-hashes to
+  `scrypt` on the next *successful* login. No migration script, no mass
+  re-hash, no forced password resets, and the common path (already on `scrypt`)
+  is untouched.
+- **`referred_by` no longer 500s.** Both call sites in `routes/login.py` now
+  coerce through `int()` inside a `try/except` and ignore junk input.
+- **Non-numeric user ids in moderation routes no longer 500.** `/api/ban_user`
+  and `/api/unban_user` compared a URL path string against the integer
+  `users.id`; they now coerce, and a non-numeric id is a 400.
+- **`204` responses were being returned as `200`.** `admin_level_required`
+  unwrapped every tuple response to `response[0]`, which turned `("", 204)` into
+  an empty 200 body. It now only unwraps the `(response, model)` pairs that
+  actually need it.
+- **Duplicate submissions were not detected.** `POST /submit` forced `https`
+  onto the submitted URL *after* the duplicate check, so the raw input never
+  matched the stored row and the same link could be posted repeatedly. The
+  rewrite now happens first.
+- **A repeated comment now lands where the first one did.** The duplicate
+  redirect used the comment's own permalink while the create path used
+  `#comment-N` on the post page; both now use the latter.
 
 ### Missing core feature
 
@@ -309,9 +340,6 @@ them can quietly rot into "looks green".
 Not addressed in this migration, and not covered by the phase that produced this
 document:
 
-- Password hashing is still `pbkdf2:sha512`. Consider `scrypt` (built into
-  Werkzeug 3, no new dependency, migrates old hashes transparently on next
-  login) or `argon2id`.
 - The signup formkey is bound to a timestamp but its 120-second expiry check is
   commented out, so a captured form stays valid indefinitely.
 - CSRF formkeys are missing from `/api/sticky` and four comment-moderation
@@ -320,8 +348,8 @@ document:
 - Open redirects: `POST /login` accepts `?redirect=`, and `edit_comment`
   redirects to `current_page`, both unvalidated.
 - `/health` mints a session cookie, and does so on every health probe.
-- Several unvalidated `int()` casts on request parameters return 500 instead of
-  400 (`/reset` without `time`, non-numeric `referred_by`, non-base36 post ids).
+- Unvalidated `int()` casts on request parameters return 500 instead of 400
+  (`/reset` without `time`, non-base36 post ids).
 - `api_sticky_post` dereferences a missing post outside its null check.
 - No rate limits on signup, password reset, voting, flagging or search.
 - `helpers/sanitize.py` allows any `ruqqus.com`/`ruqq.us` subdomain through a

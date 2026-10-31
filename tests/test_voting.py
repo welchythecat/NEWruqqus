@@ -79,11 +79,14 @@ class TestPostVotes:
     def test_votes_are_tallied_by_the_database(self, client, as_user, make_user, make_post):
         """``Submission.ups`` is ``ups(submissions)``, not a stored counter."""
         post = make_post()
-        voter_a = as_user()
-        voter_b = as_user(make_user())
+        voter_a = make_user()
+        voter_b = make_user()
 
-        vote_post(client, voter_a, post, 1)
-        vote_post(client, voter_b, post, 1)
+        # Sign in immediately before each vote.  The formkey is bound to the
+        # signed-in user, so a vote cast while someone else is signed in is
+        # rejected as a forged formkey and never counted at all.
+        vote_post(client, as_user(voter_a), post, 1)
+        vote_post(client, as_user(voter_b), post, 1)
 
         fresh = db.query(Submission).filter_by(id=post.id).first()
         assert fresh.ups == 2

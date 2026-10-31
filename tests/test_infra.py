@@ -258,7 +258,7 @@ class TestPinnedDefects:
             "AttributeErrors instead of returning 404."
         ),
     )
-    def test_sticky_missing_post_returns_404(self, client, as_user, formkey, make_post):
+    def test_sticky_missing_post_returns_404(self, client, as_user, make_post):
         admin = as_user()
         db.query(User).filter_by(id=admin.id).first().admin_level = 3
         db.commit()
