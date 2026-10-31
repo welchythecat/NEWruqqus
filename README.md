@@ -6,10 +6,12 @@
   
 [![Donate](https://img.shields.io/badge/Donate-Support%20this%20project-success?style=plastic&logo=githubsponsors&logoColor=white)](#donate)
 
+[![Also check out your-repo-name](https://img.shields.io/badge/Also%20check%20out-your--repo--name-blue?style=plastic&logo=github&logoColor=white)](https://github.com/your-username/your-repo-name)
 
 ![GitHub language count](https://img.shields.io/github/languages/count/ruqqus/ruqqus) ![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/ruqqus/ruqqus)
 
 [![Discord](https://img.shields.io/badge/Discord-Join%20our%20server-5865F2?style=plastic&logo=discord&logoColor=white)](https://discord.gg/DEudNfXvWZ)
+
 
 # NewRuqqus
 
