@@ -6,7 +6,7 @@ import re
 
 class UserMention(SpanToken):
 
-    pattern=re.compile("(^|\s)@(\w+)")
+    pattern=re.compile(r"(^|\s)@(\w+)")
     
     def __init__(self, match_obj):
         self.target = (match_obj.group(1), match_obj.group(2))

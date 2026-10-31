@@ -1,0 +1,34 @@
+# Ruff configuration for Ruqqus.
+#
+# Scope note
+# ----------
+# The legacy package (ruqqus/) is 2019-2021 code: it uses `from x import *`
+# heavily, does not follow modern formatting, and was never linted.  Phase 6
+# reformats the tree and tightens this config to the full rule set.
+#
+# Until then the rules below are chosen to catch *real* defects with near-zero
+# noise on legacy code:
+#
+#   E9   syntax errors
+#   F63  invalid print / star-mapping usage
+#   F7   syntax errors in type comments and __future__ annotations
+#   F82  undefined names -- catches genuine NameErrors
+#
+# Anything that fires under this set is a real bug, not a style opinion.
+
+target-version = "py312"
+line-length = 100
+
+[lint]
+select = [
+    "E9",
+    "F63",
+    "F7",
+    "F82",
+]
+
+[format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"

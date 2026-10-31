@@ -1,0 +1,47 @@
+# Keep the build context small and make sure secrets never enter an image.
+.git
+.github
+.gitignore
+.travis.yml
+
+# Local virtualenvs
+.venv
+venv
+env
+
+# Secrets and local config -- the image is configured through environment
+# variables only.  Never bake a real .env into an image.
+.env
+.env.*
+!.env.example
+
+# Python build artefacts
+__pycache__
+*.py[cod]
+*.egg-info
+.pytest_cache
+.ruff_cache
+.mypy_cache
+
+# Local / generated data
+uploads
+*.log
+*.sql
+*.dump
+
+# Docs and dev-only files that the running app never reads
+AUDIT.md
+MIGRATION_NOTES.md
+CHANGELOG.md
+INSTALL.md
+docs
+test.py
+_verify
+build
+_patch
+
+# Editor and OS noise
+.vscode
+.idea
+.DS_Store
+Thumbs.db

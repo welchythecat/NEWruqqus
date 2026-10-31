@@ -33,7 +33,13 @@ _allowed_protocols=['http', 'https']
 #filter to make all links show domain on hover
 def nofollow(attrs, new=False):
 
-    parsed_url=urlparse(attrs[(None, "href")])
+    # bleach>=5 invokes callbacks on pre-existing <a> tags too, not just
+    # linkified ones, so a tag may legitimately have no href at all.
+    href = attrs.get((None, "href"))
+    if not href:
+        return attrs
+
+    parsed_url=urlparse(href)
     domain=parsed_url.netloc
     if domain and not domain.endswith(("ruqqus.com","ruqq.us")):
         attrs[(None, "rel")]="nofollow"

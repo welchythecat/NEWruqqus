@@ -83,6 +83,10 @@ celerybeat-schedule
 
 # Environments
 .env
+# Any other local env file (.env.bak, .env.production, ...) stays private, but
+# the documented template must remain tracked.
+.env.*
+!.env.example
 .venv
 env/
 venv/
@@ -103,12 +107,20 @@ venv.bak/
 # mypy
 .mypy_cache/
 
-#custom
+# Project specific
+
+# OS cruft
 .DS_Store
-teedee/.DS_Store
-node_modules/
-package-lock.json
+Thumbs.db
+
+# Sass compiles ruqqus/assets/style/*.scss to *.css; the .map files are build
+# noise.  node_modules is here because sass is often installed via npm.
 .css.map
 *.map
-tee_dee_templates/
+node_modules/
+package-lock.json
+
+# Runtime state and tool caches that must never be committed
+uploads/
+.ruff_cache/
 local.txt

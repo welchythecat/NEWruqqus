@@ -21,7 +21,7 @@ class Comment(Base):
     author_id = Column(BigInteger, ForeignKey(User.id))
     body = Column(String(2000), default=None)
     parent_submission = Column(BigInteger, ForeignKey(Submission.id))
-    parent_fullname = Column(BigInteger) #this column is foreignkeyed to comment(id) but we can't do that yet as "comment" class isn't yet defined
+    parent_fullname = Column(String(255)) # fullname of the parent ("t2_..." post or "t3_..." comment)
     created_utc = Column(BigInteger, default=0)
     edited_timestamp = Column(BigInteger, default=0)
     is_banned = Column(Boolean, default=False)
@@ -40,15 +40,19 @@ class Comment(Base):
     flag_count=Column(Integer, server_default=FetchedValue())
 
     def __init__(self, *args, **kwargs):
-                   
 
         if "created_utc" not in kwargs:
             kwargs["created_utc"]=int(time.time())
-            
-        for x in kwargs:
-            if x not in ["ups","downs","score","rank_hot","rank_fiery","age","comment_count"]:
-                self.__dict__[x]=kwargs[x]
-                
+
+        # The ups/downs/age/flag_count "columns" are PostgreSQL row-wise
+        # functions, and rank_hot/rank_fiery/score are read-only properties.
+        # None of them may be passed to the ORM constructor.
+        for x in ("ups", "downs", "score", "rank_hot", "rank_fiery",
+                  "age", "comment_count", "flag_count"):
+            kwargs.pop(x, None)
+
+        super().__init__(*args, **kwargs)
+
     def __repr__(self):
         return f"<Comment(id={self.id})"
         
@@ -56,7 +60,7 @@ class Comment(Base):
     @property
     @cache.memoize(timeout=60)
     def rank_hot(self):
-        return (self.ups-self.down)/(((self.age+100000)/6)**(1/3))
+        return (self.ups-self.downs)/(((self.age+100000)/6)**(1/3))
 
     @property
     @cache.memoize(timeout=60)

@@ -1,0 +1,10 @@
+# Development and CI tools.  Not needed to run the site.
+#
+#   pip install -r requirements-dev.txt
+#
+# Kept separate from requirements.txt so a production install stays minimal.
+
+-r requirements.txt
+
+pytest==9.2.0
+ruff==0.17.3

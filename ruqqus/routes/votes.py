@@ -56,7 +56,7 @@ def api_vote_comment(comment_id, x, v):
     comment_id=base36decode(comment_id)
 
     comment = db.query(Comment).filter_by(id=comment_id).first()
-    if not comment_id:
+    if not comment:
         abort(404)
 
     if comment.is_banned:

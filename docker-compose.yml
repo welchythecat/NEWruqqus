@@ -1,0 +1,138 @@
+# ---------------------------------------------------------------------------
+# Ruqqus - application + PostgreSQL + Redis
+#
+#   cp .env.example .env       # then edit it - see INSTALL.md
+#   docker compose up -d --build
+#
+# All configuration reaches the app through environment variables.  Docker
+# Compose reads the repo-root `.env` for interpolation (the `POSTGRES_*` and
+# `SECRET_KEY` values below), and passes the resulting variables into the
+# container.  The application's own `.env` file is deliberately NOT mounted --
+# see .dockerignore.
+#
+# Only the app is published to the host.  PostgreSQL and Redis stay on an
+# internal network, so they are not reachable from the internet even if the
+# host firewall is misconfigured.
+# ---------------------------------------------------------------------------
+
+name: ruqqus
+
+services:
+
+  # =========================================================================
+  # PostgreSQL 16 (any 15+ works - see INSTALL.md to change the version)
+  # =========================================================================
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ruqqus}
+      POSTGRES_USER: ${POSTGRES_USER:-ruqqus}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env to a long random value}
+    volumes:
+      # Survives `docker compose down`.  Use `docker compose down -v` to wipe.
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-ruqqus} -d $${POSTGRES_DB:-ruqqus}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    networks:
+      - ruqqus
+
+  # =========================================================================
+  # Redis 7 - response cache and rate-limit storage
+  # =========================================================================
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # Persist the cache across restarts.  Losing it is harmless (it is only a
+    # cache) but AOF keeps warm restarts warm.
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+    networks:
+      - ruqqus
+
+  # =========================================================================
+  # The application
+  # =========================================================================
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ruqqus:latest
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      # "${PORT:-8000}" is the host port; 8000 is the container port.
+      # On a VPS behind Caddy/Nginx you can bind to loopback only:
+      #   ports: ["127.0.0.1:${PORT:-8000}:8000"]
+      - "${PORT:-8000}:8000"
+    environment:
+      # --- required -------------------------------------------------------
+      SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env - see INSTALL.md}
+      # Built from POSTGRES_* so the app reaches the db service by name.
+      # NOTE: if your password contains @ : / ? or # it must be percent-encoded
+      # here, or the URL will not parse.
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ruqqus}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-ruqqus}
+      REDIS_URL: redis://redis:6379/0
+
+      # --- site identity ---------------------------------------------------
+      SITE_URL: ${SITE_URL:-http://localhost:8000}
+      # Trust one layer of X-Forwarded-* (Caddy/Nginx).  Harmless when direct.
+      BEHIND_PROXY: ${BEHIND_PROXY:-true}
+
+      # --- behaviour -------------------------------------------------------
+      PORT: "8000"
+      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-2}
+      CACHE_ENABLED: ${CACHE_ENABLED:-true}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+
+      # --- mail ------------------------------------------------------------
+      # "console" prints mail to the container log: `docker compose logs app`
+      MAIL_BACKEND: ${MAIL_BACKEND:-console}
+      MAIL_FROM: ${MAIL_FROM:-Ruqqus <noreply@localhost>}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_USE_TLS: ${SMTP_USE_TLS:-true}
+
+      # --- optional --------------------------------------------------------
+      TOKEN_SIGNING_KEY: ${TOKEN_SIGNING_KEY:-}
+      UPLOAD_DIR: /app/uploads
+    volumes:
+      - uploads:/app/uploads
+    healthcheck:
+      # The array form MUST start with "CMD" (or "CMD-SHELL"); a bare
+      # ["python", ...] exec array is valid in a Dockerfile HEALTHCHECK but is
+      # rejected by Compose with "healthcheck.test must start either by CMD,
+      # CMD-SHELL or NONE".
+      test: ["CMD", "python", "scripts/healthcheck.py"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      - ruqqus
+
+volumes:
+  db_data:
+  redis_data:
+  uploads:
+
+networks:
+  ruqqus:
+    driver: bridge

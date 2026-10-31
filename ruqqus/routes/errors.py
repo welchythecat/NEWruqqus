@@ -3,6 +3,11 @@ from flask import *
 from ruqqus.__main__ import app
 
 #Errors
+@app.errorhandler(400)
+@auth_desired
+def error_400(e, v):
+    return render_template('errors/400.html', v=v), 400
+
 @app.errorhandler(401)
 @auth_desired
 def error_401(e, v):
@@ -23,14 +28,19 @@ def error_404(e, v):
 def error_405(e, v):
     return render_template('errors/405.html', v=v), 405
 
+@app.errorhandler(410)
+@auth_desired
+def error_410(e, v):
+    return render_template('errors/410.html', v=v), 410
+
 @app.errorhandler(422)
 @auth_desired
-def error_405(e, v):
+def error_422(e, v):
     return render_template('errors/422.html', v=v), 422
 
 @app.errorhandler(429)
 @auth_desired
-def error_405(e, v):
+def error_429(e, v):
     return render_template('errors/429.html', v=v), 429
 
 @app.errorhandler(500)

@@ -1,0 +1,31 @@
+# Normalise line endings to LF in the repository.
+#
+# Why this file exists: on Windows, core.autocrlf=true checks files out as
+# CRLF.  A shell script or a Makefile with CRLF line endings fails to run on
+# Linux -- the container build chokes on "$'\r': command not found" -- and the
+# failure looks like a Docker problem rather than a checkout problem.  Pinning
+# these to LF keeps a Windows checkout deployable.
+
+* text=auto
+
+# Consumed by tools that break on CRLF.
+*.sh       text eol=lf
+Dockerfile text eol=lf
+Makefile   text eol=lf
+*.yml      text eol=lf
+*.yaml     text eol=lf
+*.ini      text eol=lf
+*.toml     text eol=lf
+*.cfg      text eol=lf
+
+# Images and webfonts: never convert line endings inside these.
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.eot   binary
+*.map   binary

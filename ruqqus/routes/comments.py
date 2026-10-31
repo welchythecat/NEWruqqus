@@ -11,8 +11,9 @@ from ruqqus.helpers.embed import *
 from ruqqus.helpers.markdown import *
 from ruqqus.classes import *
 from flask import *
+from ruqqus import config
 from ruqqus.__main__ import app, db, limiter
-from werkzeug.contrib.atom import AtomFeed
+from ruqqus.helpers.atom import AtomFeed
 from datetime import datetime
 
 @app.route("/cid/<cid>", methods=["GET"])
@@ -115,7 +116,7 @@ def api_comment(v):
 
     #queue up notifications for username mentions
     soup=BeautifulSoup(c.body_html, features="html.parser")
-    mentions=soup.find_all("a", href=re.compile("/u/(\w+)"), limit=3)
+    mentions=soup.find_all("a", href=re.compile(r"/u/(\w+)"), limit=3)
     for mention in mentions:
         username=mention["href"].split("/u/")[1]
         user=db.query(User).filter_by(username=username).first()
@@ -223,7 +224,7 @@ def feeds(sort=None):
         feed.add(post.title, post.body_html,
                  content_type='html',
                  author=post.author.username,
-                 url=f"https://ruqqus.com{post.permalink}",
+                 url=f"{config.SITE_URL}{post.permalink}",
                  updated=datetime.fromtimestamp(post.created_utc),
                  published=datetime.fromtimestamp(post.created_utc))
     return feed.get_response()

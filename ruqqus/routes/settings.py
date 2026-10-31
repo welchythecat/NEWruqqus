@@ -1,9 +1,13 @@
+import time
+from urllib.parse import quote
+
 from flask import *
+from ruqqus import config
 from ruqqus.classes import *
 from ruqqus.helpers.wrappers import *
 from ruqqus.helpers.security import *
 from ruqqus.helpers.sanitize import *
-from ruqqus.mail import *
+from ruqqus.mail import send_mail
 from ruqqus.__main__ import db, app
 
 @app.route("/settings/profile", methods=["POST"])
@@ -74,7 +78,7 @@ def settings_security_post(v):
             return render_template("settings_security.html", v=v, error="That's already your email!")
 
 
-        url=f"https://{environ.get('domain')}/activate"
+        url=f"{config.SITE_URL}/activate"
             
         now=int(time.time())
 

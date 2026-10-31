@@ -1,11 +1,11 @@
 from flask import *
 import time
 import hmac
-from os import environ
 import re
 import random
 from urllib.parse import urlencode
 
+from ruqqus import config
 from ruqqus.classes import *
 from ruqqus.helpers.wrappers import *
 from ruqqus.helpers.base36 import *
@@ -17,8 +17,8 @@ from secrets import token_hex
 from ruqqus.mail import *
 from ruqqus.__main__ import app, limiter
 
-valid_username_regex=re.compile("^\w{5,25}$")
-valid_password_regex=re.compile("^.{8,}$")
+valid_username_regex=re.compile(r"^\w{5,25}$")
+valid_password_regex=re.compile(r"^.{8,}$")
 #valid_email_regex=re.compile("(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$)")
 
 #login form
@@ -147,8 +147,12 @@ def sign_up_get(v):
 
     
     #formkey is a hash of session token, timestamp, and IP address
-    formkey = hmac.new(key=bytes(environ.get("MASTER_KEY"), "utf-16"),
-                       msg=bytes(formkey_hashstr, "utf-16")
+    # digestmod="md5" is what Python < 3.13 defaulted to; spelling it out keeps
+    # the token value identical while working on 3.13+, where hmac.new() no
+    # longer supplies a default.
+    formkey = hmac.new(key=bytes(config.SECRET_KEY, "utf-16"),
+                       msg=bytes(formkey_hashstr, "utf-16"),
+                       digestmod="md5"
                        ).hexdigest()
 
     redir = request.args.get("redirect",None)
@@ -184,8 +188,9 @@ def sign_up_post(v):
     
     correct_formkey_hashstr = form_timestamp+submitted_token+agent
     
-    correct_formkey = hmac.new(key=bytes(environ.get("MASTER_KEY"), "utf-16"),
-                               msg=bytes(correct_formkey_hashstr, "utf-16")
+    correct_formkey = hmac.new(key=bytes(config.SECRET_KEY, "utf-16"),
+                               msg=bytes(correct_formkey_hashstr, "utf-16"),
+                               digestmod="md5"
                                ).hexdigest()
     
     now=int(time.time())
@@ -310,7 +315,7 @@ def post_forgot():
         #generate url
         now=int(time.time())
         token=generate_hash(f"{user.id}+{now}+forgot")
-        url=f"https://{app.config['SERVER_NAME']}/reset?id={user.id}&time={now}&token={token}"
+        url=f"{config.SITE_URL}/reset?id={user.id}&time={now}&token={token}"
 
         send_mail(to_address=user.email,
                   subject="Ruqqus - Password Reset Request",

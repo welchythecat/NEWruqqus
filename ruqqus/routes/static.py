@@ -1,19 +1,27 @@
-import time
-from ruqqus.helpers.wrappers import *
-from flask import *
+from pathlib import Path
 
+from flask import *
+from jinja2.exceptions import TemplateNotFound
+from werkzeug.utils import safe_join
+
+from ruqqus.helpers.wrappers import *
 from ruqqus.__main__ import app, limiter
 from ruqqus.classes import *
+
+# Assets live in ruqqus/assets/.  Resolved against the package directory
+# rather than the process working directory, so the app can be started from
+# any cwd (the original used a bare "./assets" path).
+ASSETS_DIR = Path(app.root_path) / "assets"
 
 #take care of misc pages that never really change (much)
 @app.route('/assets/<path:path>')
 @limiter.exempt
 def static_service(path):
-    return send_from_directory('./assets', path)
+    return send_from_directory(ASSETS_DIR, path)
 
 @app.route("/robots.txt", methods=["GET"])
 def robots_txt():
-    return send_file("./assets/robots.txt")
+    return send_file(ASSETS_DIR / "robots.txt")
 
 @app.route("/settings", methods=["GET"])
 @auth_required
@@ -37,7 +45,7 @@ def help(v):
 
 @app.route("/favicon.ico", methods=["GET"])
 def favicon():
-    return send_file("./assets/images/logo/favicon.png")
+    return send_file(ASSETS_DIR / "images" / "logo" / "favicon.png")
 
 @app.route("/my_info",methods=["GET"])
 @auth_required
@@ -55,6 +63,12 @@ def notifications(v):
 def submit_get(v):
     return render_template("submit.html", v=v)
 
+@app.route("/about")
+def about_index():
+    # Only /about/<path> was routed, so the bare /about used by four nav links
+    # 404'd.  Forward it the same way the wildcard route below does.
+    return redirect("/help/about")
+
 @app.route("/about/<path:path>")
 def about_path(path):
     return redirect(f"/help/{path}")
@@ -62,7 +76,11 @@ def about_path(path):
 @app.route("/help/<path:path>")
 @auth_desired
 def help_path(path, v):
+    # safe_join() returns None for anything that escapes "help/".
+    template_name = safe_join("help", path + ".html")
+    if template_name is None:
+        abort(404)
     try:
-        return render_template(safe_join("help", path+".html"), v=v)
-    except jinja2.exceptions.TemplateNotFound:
+        return render_template(template_name, v=v)
+    except TemplateNotFound:
         abort(404)

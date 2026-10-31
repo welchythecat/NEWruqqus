@@ -1,33 +1,82 @@
-beautifulsoup4==4.8.1
-bleach==3.1.0
-certifi==2019.6.16
-chardet==3.0.4
-Click==7.0
-Flask==1.1.1
-Flask-Caching==1.7.2
-Flask-Limiter==1.1.0
-Flask-Markdown==0.3
-gevent==1.4.0
-gunicorn==19.9.0
-idna==2.7
-itsdangerous==1.1.0
-Jinja2==2.10.1
-Markdown==3.1.1
-MarkupSafe==1.1.1
-mistletoe==0.7.2
-praw==6.3.1
-prawcore==1.0.1
-psycopg2-binary==2.8.3
-python-binary-memcached==0.28.0
-PyYAML==5.1.1
-redis==3.3.6
-requests==2.20.0
-six==1.12.0
-SQLAlchemy==1.3.5
-typing==3.7.4
-uhashring==1.1
-update-checker==0.16
-urllib3==1.24.3
-webencodings==0.5.1
-websocket-client==0.56.0
-Werkzeug==0.15.5
+# Ruqqus -- pinned runtime dependencies
+#
+# Target: Python 3.12+ (tested on 3.12/3.13).  Install with:
+#
+#     python -m venv .venv
+#     source .venv/bin/activate          # Windows: .venv\Scripts\activate
+#     pip install -r requirements.txt
+#
+# Every line here is a package the code imports directly, plus gunicorn
+# (production server) and redis (the Flask-Caching / Flask-Limiter storage
+# backend).  Transitive dependencies -- click, itsdangerous, blinker,
+# webencodings, typing-extensions, ... -- are deliberately left to pip's
+# resolver so a security fix in one of them is picked up without a pin bump.
+# If you need a byte-for-byte reproducible install, run
+# `pip freeze > requirements.lock.txt` right after installing.
+
+# ---------------------------------------------------------------------------
+# Web framework
+# ---------------------------------------------------------------------------
+Flask==3.1.3
+Werkzeug==3.1.9
+Jinja2==3.1.6
+MarkupSafe==3.0.4
+
+# ---------------------------------------------------------------------------
+# Database
+# ---------------------------------------------------------------------------
+SQLAlchemy==2.1.6
+# psycopg[binary] pulls in psycopg-binary, so no C compiler is needed on
+# Windows, macOS or Linux.
+psycopg[binary]==3.3.6
+alembic==1.20.1
+
+# ---------------------------------------------------------------------------
+# Caching and rate limiting
+# ---------------------------------------------------------------------------
+redis==8.1.0
+Flask-Caching==2.5.1
+Flask-Limiter==4.1.1
+
+# ---------------------------------------------------------------------------
+# Content rendering and sanitisation
+# ---------------------------------------------------------------------------
+# User-submitted posts and comments: mistletoe + a custom renderer for
+# @username mentions (see ruqqus/helpers/markdown.py).
+mistletoe==1.6.0
+# Help pages via the Jinja `markdown` filter (see ruqqus/helpers/markdown_filter.py).
+Markdown==3.11.2
+# HTML sanitisation of rendered markdown (see ruqqus/helpers/sanitize.py).
+bleach==6.4.0
+# Used by ruqqus/helpers/filters.py to rewrite links inside sanitised HTML.
+beautifulsoup4==4.15.0
+
+# ---------------------------------------------------------------------------
+# Configuration
+# ---------------------------------------------------------------------------
+python-dotenv==1.2.4
+
+# ---------------------------------------------------------------------------
+# Production server
+# ---------------------------------------------------------------------------
+gunicorn==26.2.0
+
+# ---------------------------------------------------------------------------
+# Removed relative to the original requirements.txt
+# ---------------------------------------------------------------------------
+# praw / prawcore / update-checker / websocket-client  -> Reddit integration
+#     was deleted (routes/reddit_api.py).  See MIGRATION_NOTES.md.
+# python-binary-memcached / uhashring                 -> memcached backend is
+#     unused; Flask-Caching is configured with Redis or NullCache only.
+# gevent                                              -> the app is I/O-light
+#     and gunicorn's default sync workers are simpler and far better
+#     supported.  Start with `-w 2` and add more only if you measure a need.
+# psycopg2-binary                                     -> replaced by psycopg 3.
+# Flask-Markdown                                      -> abandoned in 2014 and
+#     incompatible with Flask 3; replaced by a 30-line local Jinja filter
+#     (ruqqus/helpers/markdown_filter.py) that renders identically.
+# requests / PyYAML                                   -> no longer imported.
+# certifi / chardet / idna / urllib3 / six            -> transitive deps of
+#     `requests`; dropped along with it.
+# typing                                              -> backport, built into
+#     Python 3.12+.

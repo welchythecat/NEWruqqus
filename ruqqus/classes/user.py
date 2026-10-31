@@ -97,23 +97,6 @@ class User(Base):
         
         return vote.vote_type
     
-    def update_ip(self, remote_addr):
-        
-        if not remote_addr==self.most_recent_ip:
-            self.most_recent_ip = remote_addr
-            db.add(self)
-
-        existing=self.ips.filter_by(ip=remote_addr).first()
-
-        if existing:
-            existing.created_utc=time()
-            db.add(existing)
-            
-        else:
-            db.add(IP(user_id=self.id, ip=remote_addr))
-        
-        db.commit()
-
     def hash_password(self, password):
         return generate_password_hash(password, method='pbkdf2:sha512', salt_length=8)
 
