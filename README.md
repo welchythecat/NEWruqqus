@@ -8,7 +8,7 @@
 
 [![Also check out REvoat](https://img.shields.io/badge/Also%20check%20out-Revoat-blue?style=plastic&logo=github&logoColor=white)](https://github.com/welchythecat/REvoat)
 
-![GitHub language count](https://img.shields.io/github/languages/count/ruqqus/ruqqus) ![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/ruqqus/ruqqus)
+![GitHub language count](https://img.shields.io/github/languages/count/ruqqus/ruqqus) ![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/NEWruqqus/NEWruqqus)
 
 [![Discord](https://img.shields.io/badge/Discord-Join%20our%20server-5865F2?style=plastic&logo=discord&logoColor=white)](https://discord.gg/DEudNfXvWZ)
 
