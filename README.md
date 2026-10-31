@@ -17,6 +17,11 @@
 
 NewRuqqus is a new and improved fork of ruqqus, an independent, 100% USA-based, free-speech-first social platform. That In an era of censorship and quarantines, they were bringing First Amendment rights into the digital space and were bringing it back
 
+**This tree is a modernized fork of the original Ruqqus codebase (2019–2021). The
+original site is gone; the code has been brought up to date so it runs on
+current Python and current libraries, installs from scratch on Windows, Linux
+and macOS, and can be deployed to a VPS.**
+
 ## Donate
 
 **BTC** - `bc1qh4hgx2nnsye0lf2w6rar8wj3j3j4cdwc0nnr7h`
