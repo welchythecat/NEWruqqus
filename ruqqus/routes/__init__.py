@@ -4,6 +4,7 @@ from .comments import *
 from .errors import *
 from .flagging import *
 from .front import *
+from .guilds import *
 from .health import *
 from .login import *
 from .posts import *

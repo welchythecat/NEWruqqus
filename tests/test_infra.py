@@ -20,6 +20,29 @@ from ruqqus.classes.badges import BadgeDef
 from ruqqus.classes.images import Image, random_image
 
 
+def test_a_post_with_no_url_still_renders(client, as_user, make_post):
+    """
+    ``submissions.url`` is nullable and defaults to NULL.
+
+    Both listing templates called ``p.url.endswith(...)`` on it unguarded, so
+    a text post created without a url crashed the front page and the post page
+    with ``UndefinedError: 'None' has no attribute 'endswith'``.  The submit
+    route always writes ``""`` rather than NULL, which is why this stayed
+    latent -- but the column allows it, and an ORM insert or a hand-edited row
+    is enough to trigger it.
+    """
+    post = make_post(title="A text post with no url at all", url=None)
+    as_user()
+
+    listing = client.get("/")
+    assert listing.status_code == 200
+    assert b"A text post with no url at all" in listing.data
+
+    page = client.get(post.permalink)
+    assert page.status_code == 200
+    assert b"A text post with no url at all" in page.data
+
+
 # --------------------------------------------------------------------------
 # The rig
 # --------------------------------------------------------------------------
@@ -83,7 +106,15 @@ def test_schema_has_all_tables(db_session):
 
 
 def test_schema_has_no_leftover_legacy_tables(db_session):
-    """``boards``, ``dms``, ``ips`` and ``userflags`` were dropped on purpose."""
+    """
+    ``dms``, ``ips`` and ``userflags`` were dropped on purpose.
+
+    ``boards`` used to be in this list.  It is no longer a leftover: guilds
+    brought it back under its historical name, so that a database that still
+    carries the original table keeps its guilds across an upgrade.  It is
+    asserted present in ``test_guild_tables_are_present`` below.  See
+    MIGRATION_NOTES.md §5.
+    """
     from sqlalchemy import text
 
     rows = set(
@@ -92,17 +123,50 @@ def test_schema_has_no_leftover_legacy_tables(db_session):
         ).scalars().all()
     )
 
-    for table in ("boards", "dms", "ips", "userflags"):
+    for table in ("dms", "ips", "userflags"):
         assert table not in rows
 
 
-def test_alembic_head_is_0001_initial(db_session):
+def test_guild_tables_are_present(db_session):
+    """``boards`` is the guild table; ``board_members`` is the guild's roster."""
     from sqlalchemy import text
+
+    rows = set(
+        db_session.execute(
+            text("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
+        ).scalars().all()
+    )
+
+    for table in ("boards", "board_members"):
+        assert table in rows, f"{table} missing from the schema"
+
+
+def test_alembic_head_matches_the_migration_scripts(db_session):
+    """
+    The database is at the newest migration the scripts know about.
+
+    Compared against ``ScriptDirectory`` rather than a literal revision id,
+    so adding a migration does not make this test lie about being out of date.
+    """
+    from alembic.config import Config as AlembicConfig
+    from alembic.script import ScriptDirectory
+    from sqlalchemy import text
+
+    cfg = AlembicConfig(str(PROJECT_ROOT / "alembic.ini"))
+    cfg.set_main_option("script_location", str(PROJECT_ROOT / "migrations"))
+    heads = ScriptDirectory.from_config(cfg).get_heads()
+
+    assert len(heads) == 1, (
+        f"migration scripts have branched: heads are {sorted(heads)}. "
+        "There must be exactly one head, or upgrade order is undefined."
+    )
 
     version = db_session.execute(
         text("SELECT version_num FROM alembic_version")
     ).scalar()
-    assert version == "0001_initial"
+    assert version == heads[0], (
+        f"database is at {version!r} but the newest migration is {heads[0]!r}"
+    )
 
 
 # --------------------------------------------------------------------------
@@ -296,10 +360,11 @@ class TestPinnedDefects:
     @pytest.mark.xfail(
         strict=True,
         reason=(
-            "CSRF: /api/sticky, /api/ban_comment, /api/unban_comment, "
-            "/api/distinguish_comment, /api/undistinguish_comment and both "
-            "/api/flag/* routes are missing @validate_formkey, unlike every "
-            "other state-changing route."
+            "CSRF: /api/sticky, /api/distinguish_comment, "
+            "/api/undistinguish_comment and both /api/flag/* routes are "
+            "missing @validate_formkey, unlike every other state-changing "
+            "route.  (/api/ban_comment and /api/unban_comment were in this "
+            "list and now carry the check.)"
         ),
     )
     def test_state_changing_routes_require_formkey(self, client, as_user, make_post):

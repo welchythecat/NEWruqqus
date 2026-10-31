@@ -1,0 +1,82 @@
+{% extends "default.html" %}
+
+{% block title %}
+<title>Create a guild - Ruqqus</title>
+<meta name="description" content="Create a guild on Ruqqus">
+{% endblock %}
+
+{% block pagetype %}create-guild{% endblock %}
+
+{% block content %}
+
+<div class="row no-gutters justify-content-center">
+
+  <div class="col-12 col-md-8 col-lg-6">
+
+    <div class="card">
+
+      <div class="card-header bg-white">
+        <h5 class="mb-0">Create a guild</h5>
+      </div>
+
+      <form id="create_guild" action="/create_guild" method="post">
+
+        <div class="card-body">
+
+          <input type="hidden" name="formkey" value="{{ v.formkey }}">
+
+          <label for="name">Guild name</label>
+
+          <input class="form-control" id="name" type="text" name="name"
+          value="{{ name|default('') }}" required maxlength="32"
+          aria-describedby="nameHelp">
+
+          <small class="form-text text-muted">
+            3-32 characters: letters, numbers and underscores only. Your guild
+            will live at <code>/+name</code>.
+          </small>
+
+          <label for="description" class="mt-3">Description</label>
+
+          <div class="input-group">
+            <textarea form="create_guild" class="form-control rounded"
+            aria-label="With textarea" rows="5" name="description"
+            maxlength="512"
+            placeholder="Optional. What is this guild about?">{{ description|default('') }}</textarea>
+            <div class="bg-light text-format d-none">
+              <small class="format"><i class="fas fa-bold"></i></small>
+              <small class="format"><i class="fas fa-italic"></i></small>
+              <small class="format"><i class="fas fa-quote-right"></i></small>
+              <small class="format"><i class="fas fa-link"></i></small>
+            </div>
+          </div>
+
+          <small class="form-text text-muted">Up to 512 characters. Markdown is supported.</small>
+
+        </div>
+
+        <div class="card-footer">
+
+          <div class="d-flex">
+
+            {% if error %}
+            <p class="mb-0">
+              <span class="text-danger text-small" style="vertical-align: sub;">{{ error }}</span>
+            </p>
+            {% endif %}
+
+            <button class="btn btn-primary ml-auto">Create guild</button>
+
+          </div>
+
+        </div>
+
+      </form>
+
+    </div>
+
+  </div>
+
+</div>
+
+{% endblock %}

@@ -37,6 +37,9 @@ class Submission(Base):
     flags=relationship("Flag", lazy="dynamic", backref="submission")
     is_approved=Column(Integer, default=0)
     approved_utc=Column(Integer, default=0)
+    # The guild this post is filed under.  Nullable: posts made before guilds
+    # existed, and posts filed nowhere, both stay valid.
+    board_id=Column(Integer, ForeignKey("boards.id"), default=None)
 
 
     #These are virtual properties handled as postgres functions server-side
@@ -261,3 +264,21 @@ class Submission(Base):
     @property
     def approved_by(self):
         return db.query(User).filter_by(id=self.is_approved).first()
+
+    def can_moderate(self, user):
+        """
+        Whether ``user`` may remove or approve this post.
+
+        A site administrator moderates anywhere.  A guild moderator moderates
+        the posts filed under their own guild, and nothing outside it.  The
+        threshold for site staff is the one ``/api/ban_post`` has always
+        enforced -- this is the single source of truth for that question, and
+        the moderation menu is shown under exactly the same condition.
+        """
+        if not user:
+            return False
+
+        if user.admin_level >= 3:
+            return True
+
+        return self.guild is not None and self.guild.is_moderator(user)

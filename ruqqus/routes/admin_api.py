@@ -57,14 +57,29 @@ def unban_user(user_id, v):
     return (redirect(user.url), user)
 
 @app.route("/api/ban_post/<post_id>", methods=["POST"])
-@admin_level_required(3)
+@is_not_banned
 @validate_formkey
 def ban_post(post_id, v):
+    """
+    Remove a post.
+
+    A site administrator may remove any post.  A guild moderator may remove
+    the posts filed under their own guild, and nothing outside it.  The rule
+    lives in ``Submission.can_moderate`` so the menu that calls this route is
+    shown under exactly the same condition -- a button you can see is always a
+    button that works.
+
+    The site-administrator half is the same threshold ``@admin_level_required(3)``
+    enforced here before guilds existed; nothing was widened for site staff.
+    """
 
     post=db.query(Submission).filter_by(id=base36decode(post_id)).first()
 
     if not post:
         abort(400)
+
+    if not post.can_moderate(v):
+        abort(403)
 
     post.is_banned=True
     post.is_approved=0
@@ -73,18 +88,30 @@ def ban_post(post_id, v):
 
     db.add(post)
     db.commit()
-    
-    return (redirect(post.permalink), post)
+
+    # A plain redirect.  ``admin_level_required`` used to unwrap the
+    # (response, post) pair, but this route no longer uses that decorator --
+    # it would have to enforce a fixed admin level.  Returning the ORM object
+    # as the second tuple element now would make Flask try to read it as a
+    # status code.
+    return redirect(post.permalink)
 
 @app.route("/api/unban_post/<post_id>", methods=["POST"])
-@admin_level_required(3)
+@is_not_banned
 @validate_formkey
 def unban_post(post_id, v):
+    """
+    Restore a post.  Same permission rule as ``ban_post`` -- see
+    ``Submission.can_moderate``.
+    """
 
     post=db.query(Submission).filter_by(id=base36decode(post_id)).first()
 
     if not post:
         abort(400)
+
+    if not post.can_moderate(v):
+        abort(403)
 
     post.is_banned=False
     post.is_approved = v.id
@@ -92,8 +119,8 @@ def unban_post(post_id, v):
 
     db.add(post)
     db.commit()
-    
-    return (redirect(post.permalink), post)
+
+    return redirect(post.permalink)
 
 
 ##@app.route("/api/promote/<user_id>/<level>", methods=["POST"])
@@ -173,12 +200,31 @@ def api_sticky_post(post_id, v):
     return (redirect(post.permalink), post)
 
 @app.route("/api/ban_comment/<c_id>", methods=["post"])
-@admin_level_required(1)
+@is_not_banned
+@validate_formkey
 def api_ban_comment(c_id, v):
+    """
+    Remove a comment.
+
+    A site *moderator* (admin_level >= 1) may remove any comment -- that is
+    the threshold ``@admin_level_required(1)`` enforced here before guilds
+    existed, and it is preserved.  A guild moderator may also remove comments
+    under posts filed in their own guild.
+
+    The rule lives in ``Comment.can_moderate`` so the menu that calls this
+    route is shown under exactly the same condition.
+
+    ``@validate_formkey`` is new here: the shared ``post()`` helper in
+    default.html has always sent the formkey, so the UI is unaffected, but the
+    endpoint used to accept a cross-site request with no token at all.
+    """
 
     comment = db.query(Comment).filter_by(id=base36decode(c_id)).first()
     if not comment:
         abort(404)
+
+    if not comment.can_moderate(v):
+        abort(403)
 
     comment.is_banned=True
     comment.is_approved=0
@@ -190,12 +236,20 @@ def api_ban_comment(c_id, v):
     return "", 204
 
 @app.route("/api/unban_comment/<c_id>", methods=["post"])
-@admin_level_required(1)
+@is_not_banned
+@validate_formkey
 def api_unban_comment(c_id, v):
+    """
+    Restore a comment.  Same permission rule as ``api_ban_comment`` -- see
+    ``Comment.can_moderate``.
+    """
 
     comment = db.query(Comment).filter_by(id=base36decode(c_id)).first()
     if not comment:
         abort(404)
+
+    if not comment.can_moderate(v):
+        abort(403)
 
     comment.is_banned=False
     comment.is_approved=v.id

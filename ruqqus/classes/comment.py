@@ -221,7 +221,29 @@ class Comment(Base):
             return 0
         else:
             return self.flag_count
-        
+
+    def can_moderate(self, user):
+        """
+        Whether ``user`` may remove or approve this comment.
+
+        The same rule as ``Submission.can_moderate``, except that comment
+        moderation has always been open to site *moderators* (level 1) rather
+        than only site administrators -- ``/api/ban_comment`` requires level 1,
+        and that threshold is preserved here.  A guild moderator may also act
+        on comments under posts filed in their own guild.
+
+        This is the single source of truth for that question, and the
+        moderation menu is shown under exactly the same condition.
+        """
+        if not user:
+            return False
+
+        if user.admin_level >= 1:
+            return True
+
+        post = self.post
+        return post is not None and post.guild is not None and post.guild.is_moderator(user)
+
 class Notification(Base):
 
     __tablename__="notifications"

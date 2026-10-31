@@ -73,6 +73,15 @@
 
 {% block sidebarLeftblock %}
 
+{# The feed scope (all posts vs. my guilds) is orthogonal to the sort order,
+   so every sort link has to carry it forward or picking a sort silently drops
+   the reader back onto the global feed.  fq is the query fragment that does
+   that; home_url is the "Hot" link, which has no sort parameter of its own.
+   Both are set inside each block that links, because a top-level assignment in
+   a child template is not reliably visible to the parent's block bodies. #}
+{% set fq = '&feed=mine' if feed == 'mine' else '' %}
+{% set home_url = '/?feed=mine' if feed == 'mine' else '/' %}
+
 {% if not v %}
 <div class="sidebar-section sidebar-alert">
 <div class="body">
@@ -97,7 +106,13 @@
         <a class="dashboard-link " href="{{ v.permalink }}/posts"><i class="fas fa-feather-alt fa-width-rem"></i>Your posts</a>
       </li>
       <li class="dashboard-item">
-        <a class="dashboard-link " href="{{ v.permalink }}/comments"><i class="fas fa-comment-dots fa-width-rem"></i>Your comments</a> 
+        <a class="dashboard-link " href="{{ v.permalink }}/comments"><i class="fas fa-comment-dots fa-width-rem"></i>Your comments</a>
+      </li>
+      <li class="dashboard-item">
+        <a class="dashboard-link{% if feed == 'mine' %} active{% endif %}" href="/?feed=mine"><i class="fas fa-users fa-width-rem"></i>My guilds</a>
+      </li>
+      <li class="dashboard-item">
+        <a class="dashboard-link{% if feed == 'all' %} active{% endif %}" href="/"><i class="fas fa-globe fa-width-rem"></i>All posts</a>
       </li>
       <li class="dashboard-item">
         <a class="dashboard-link " href="/settings"><i class="fas fa-cog fa-width-rem"></i>Settings</a>
@@ -113,19 +128,19 @@
   <div class="body">
     <ul class="no-bullets filter-list pl-0">
       <li class="filter-item">
-        <a class="filter-link {% if sort_method=="hot" %} active{% endif %}" href="/"><i class="fas fa-fire fa-width-rem"></i>Hot</a>
+        <a class="filter-link {% if sort_method=="hot" %} active{% endif %}" href="{{ home_url }}"><i class="fas fa-fire fa-width-rem"></i>Hot</a>
       </li>
       <li class="filter-item">
-        <a class="filter-link {% if sort_method=="top" %} active{% endif %}" href="/?sort=top"><i class="fas fa-arrow-alt-circle-up fa-width-rem"></i>Top</a>
+        <a class="filter-link {% if sort_method=="top" %} active{% endif %}" href="/?sort=top{{ fq }}"><i class="fas fa-arrow-alt-circle-up fa-width-rem"></i>Top</a>
       </li>
       <li class="filter-item">
-        <a class="filter-link {% if sort_method=="new" %} active{% endif %}" href="/?sort=new"><i class="fas fa-asterisk fa-width-rem"></i>New</a> 
+        <a class="filter-link {% if sort_method=="new" %} active{% endif %}" href="/?sort=new{{ fq }}"><i class="fas fa-asterisk fa-width-rem"></i>New</a> 
       </li>
       <li class="filter-item">
-        <a class="filter-link {% if sort_method=="disputed" %} active{% endif %}" href="/?sort=disputed"><i class="fas fa-bullhorn fa-width-rem"></i>Disputed</a>
+        <a class="filter-link {% if sort_method=="disputed" %} active{% endif %}" href="/?sort=disputed{{ fq }}"><i class="fas fa-bullhorn fa-width-rem"></i>Disputed</a>
       </li>
       <li class="filter-item">
-        <a class="filter-link {% if sort_method=="activity" %} active{% endif %}" href="/?sort=activity"><i class="fas fa-comments fa-width-rem"></i>Activity</a>
+        <a class="filter-link {% if sort_method=="activity" %} active{% endif %}" href="/?sort=activity{{ fq }}"><i class="fas fa-comments fa-width-rem"></i>Activity</a>
       </li>
     </ul>
   </div>
@@ -134,6 +149,9 @@
 {% endblock %}
 
 {% block content %}
+
+{% set fq = '&feed=mine' if feed == 'mine' else '' %}
+{% set home_url = '/?feed=mine' if feed == 'mine' else '/' %}
 
 <!-- View toggle visible only on large devices or larger -->
 
@@ -177,19 +195,19 @@
 
   <ul class="nav post-nav mr-auto">
     <li class="nav-item">
-      <a class="nav-link{% if sort_method=="hot" %} active{% endif %}" href="/"><i class="fas fa-fire"></i>Hot</a>
+      <a class="nav-link{% if sort_method=="hot" %} active{% endif %}" href="{{ home_url }}"><i class="fas fa-fire"></i>Hot</a>
     </li>
     <li class="nav-item">
-      <a class="nav-link{% if sort_method=="top" %} active{% endif %}" href="/?sort=top"><i class="fas fa-arrow-alt-circle-up"></i>Top</a>
+      <a class="nav-link{% if sort_method=="top" %} active{% endif %}" href="/?sort=top{{ fq }}"><i class="fas fa-arrow-alt-circle-up"></i>Top</a>
     </li>
     <li class="nav-item">
-      <a class="nav-link{% if sort_method=="new" %} active{% endif %}" href="/?sort=new"><i class="fas fa-asterisk"></i>New</a> 
+      <a class="nav-link{% if sort_method=="new" %} active{% endif %}" href="/?sort=new{{ fq }}"><i class="fas fa-asterisk"></i>New</a> 
     </li>
     <li class="nav-item">
-      <a class="nav-link{% if sort_method=="disputed" %} active{% endif %}" href="/?sort=disputed"><i class="fas fa-bullhorn"></i>Disputed</a>
+      <a class="nav-link{% if sort_method=="disputed" %} active{% endif %}" href="/?sort=disputed{{ fq }}"><i class="fas fa-bullhorn"></i>Disputed</a>
     </li>
     <li class="nav-item ">
-      <a class="nav-link {% if sort_method=="activity" %} active{% endif %}" href="/?sort=activity"><i class="fas fa-comments"></i>Activity</a>
+      <a class="nav-link {% if sort_method=="activity" %} active{% endif %}" href="/?sort=activity{{ fq }}"><i class="fas fa-comments"></i>Activity</a>
     </li>
   </ul>
 
@@ -251,10 +269,10 @@
             aria-haspopup="true" aria-expanded="false">{{ sort_method.capitalize() }}</a>
 
             <span class="dropdown-menu border-0 shadow" id="dropdownMenuSortBy" aria-labelledby="dropdownSortBy">
-              <a class="dropdown-item" href="?sort=top">Top</a>
-              <a class="dropdown-item" href="?sort=new">New</a>
-              <a class="dropdown-item" href="?sort=disputed">Disputed</a>
-              <a class="dropdown-item" href="?sort=activity">Activity</a>
+              <a class="dropdown-item" href="?sort=top{{ fq }}">Top</a>
+              <a class="dropdown-item" href="?sort=new{{ fq }}">New</a>
+              <a class="dropdown-item" href="?sort=disputed{{ fq }}">Disputed</a>
+              <a class="dropdown-item" href="?sort=activity{{ fq }}">Activity</a>
             </span>
           </span>
 
@@ -298,18 +316,19 @@
       {% endblock %}
 
       {% block pagenav %}
+      {% set fq = '&feed=mine' if feed == 'mine' else '' %}
       <nav aria-label="Page navigation">
         <ul class="pagination pagination-sm mb-0">
           {% if page>1 %}
           <li class="page-item">
-            <small><a class="page-link" href="?sort={{ sort_method }}&page={{ page-1 }}" tabindex="-1">Prev</a></small>
+            <small><a class="page-link" href="?sort={{ sort_method }}{{ fq }}&page={{ page-1 }}" tabindex="-1">Prev</a></small>
           </li>
           {% else %}
           <li class="page-item disabled"><span class="page-link">Prev</span></li>
           {% endif %}
           {% if next_exists %}
           <li class="page-item">
-            <small><a class="page-link" href="?sort={{ sort_method }}&page={{ page+1 }}">Next</a></small>
+            <small><a class="page-link" href="?sort={{ sort_method }}{{ fq }}&page={{ page+1 }}">Next</a></small>
           </li>
           {% else %}
           <li class="page-item disabled"><span class="page-link">Next</span></li>

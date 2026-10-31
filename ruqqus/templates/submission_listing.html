@@ -15,7 +15,7 @@
 <div id="post-{{ p.base36id }}" class="card{% if p.is_banned %} banned{% endif %}{% if p.stickied %} stickied{% endif %}{% if voted==1 %} upvoted{% elif voted==-1 %} downvoted{% endif %}">
   <div class="d-flex flex-row-reverse flex-nowrap justify-content-end">
     <div class="card-header bg-transparent border-0 d-flex flex-row flex-nowrap p-0 my-md-auto pl-3 ml-auto">
-      {% if p.url.endswith((".jpg",".png")) and p.domain_obj and p.domain_obj.show_thumbnail %}
+      {% if p.url and p.url.endswith((".jpg",".png")) and p.domain_obj and p.domain_obj.show_thumbnail %}
       <div class="position-relative d-none d-md-block" style="z-index: 3;">
         <a href="{{ p.url }}">
           <div class="thumb-img-link-overlay">
@@ -42,7 +42,7 @@
       <a class="dropdown-item" href="javascript:void(0)" data-toggle="modal" data-target="#reportPostModal" onclick="report_postModal('{{ p.base36id }}')"><i class="fas fa-flag"></i>Flag</a>
       {% endif %}
       {% if v %}
-      {% if v.admin_level >=1 %}
+      {% if p.can_moderate(v) %}
       {% if p.is_banned or p.active_flags %}
       <a class="dropdown-item approveDropdownItem" id="moderate-post-{{ p.base36id }}" href="javascript:void(0)" onclick="approvePost('{{ p.base36id }}')"><i class="fas fa-clipboard-check"></i>Approve</a>
       {% endif %}
@@ -55,10 +55,10 @@
   </div>
 </div>
 <div class="card-block text-left my-md-auto">
-  <div class="post-meta text-left d-block d-md-none mb-2">{% if p.stickied %}<i class="fas fa-thumbtack text-success fa-rotate--45" data-toggle="tooltip" data-placement="bottom" title="Sticky post"></i> <span>&#183;</span> {% endif %}<span data-toggle="tooltip" data-placement="bottom" data-delay='{"show":"700", "hide":"300"}' title="{{ p.created_date }}">{{ p.age_string }}</span> by <a href="{{ p.author.permalink }}">{{ p.author.username }}</a> {% if p.distinguish_level %}</span> <i class="fad fa-shield text-admin" data-toggle="tooltip" data-placement="bottom" title="" data-original-title="Ruqqus Administrator, speaking officially"></i>{% endif %} <span>&#183;</span> ({{ p.domain }}){% if v and v.admin_level >=3 and p.active_flags %} &#183; <span class="text-danger">{{ p.active_flags }} Flags</span>{% endif %}
+  <div class="post-meta text-left d-block d-md-none mb-2">{% if p.stickied %}<i class="fas fa-thumbtack text-success fa-rotate--45" data-toggle="tooltip" data-placement="bottom" title="Sticky post"></i> <span>&#183;</span> {% endif %}<span data-toggle="tooltip" data-placement="bottom" data-delay='{"show":"700", "hide":"300"}' title="{{ p.created_date }}">{{ p.age_string }}</span> by <a href="{{ p.author.permalink }}">{{ p.author.username }}</a>{% if p.guild %} in <a href="{{ p.guild.url }}">+{{ p.guild.board_name }}</a>{% endif %} {% if p.distinguish_level %}</span> <i class="fad fa-shield text-admin" data-toggle="tooltip" data-placement="bottom" title="" data-original-title="Ruqqus Administrator, speaking officially"></i>{% endif %} <span>&#183;</span> ({{ p.domain }}){% if v and v.admin_level >=3 and p.active_flags %} &#183; <span class="text-danger">{{ p.active_flags }} Flags</span>{% endif %}
   </div>
   <h5 class="card-title post-title text-left mb-0 mb-md-2"><a href="{{ p.permalink }}" class="stretched-link" onclick="">{{ p.title | safe }}</a></h5>
-  <div class="post-meta text-left d-none d-md-block">{% if p.stickied %}<i class="fas fa-thumbtack text-success fa-rotate--45" data-toggle="tooltip" data-placement="bottom" title="Sticky post"></i> <span>&#183;</span> {% endif %}<span data-toggle="tooltip" data-placement="bottom" data-delay='{"show":"700", "hide":"300"}' title="{{ p.created_date }}">{{ p.age_string }}</span> by <a href="{{ p.author.permalink }}">{{ p.author.username }}</a> {% if p.distinguish_level %}<i class="fad fa-shield text-admin" data-toggle="tooltip" data-placement="bottom" title="" data-original-title="Ruqqus Administrator, speaking officially"></i>{% endif %}<span> &#183; </span>{{ p.comment_count }} comment{{ '' if p.comment_count==1 else 's' }}  <span>&#183;</span> ({{ p.domain }}){% if v and v.admin_level >=3 and p.active_flags %} &#183; <span class="text-danger">{{ p.active_flags }} Flags</span>{% endif %}
+  <div class="post-meta text-left d-none d-md-block">{% if p.stickied %}<i class="fas fa-thumbtack text-success fa-rotate--45" data-toggle="tooltip" data-placement="bottom" title="Sticky post"></i> <span>&#183;</span> {% endif %}<span data-toggle="tooltip" data-placement="bottom" data-delay='{"show":"700", "hide":"300"}' title="{{ p.created_date }}">{{ p.age_string }}</span> by <a href="{{ p.author.permalink }}">{{ p.author.username }}</a>{% if p.guild %} in <a href="{{ p.guild.url }}">+{{ p.guild.board_name }}</a>{% endif %} {% if p.distinguish_level %}<i class="fad fa-shield text-admin" data-toggle="tooltip" data-placement="bottom" title="" data-original-title="Ruqqus Administrator, speaking officially"></i>{% endif %}<span> &#183; </span>{{ p.comment_count }} comment{{ '' if p.comment_count==1 else 's' }}  <span>&#183;</span> ({{ p.domain }}){% if v and v.admin_level >=3 and p.active_flags %} &#183; <span class="text-danger">{{ p.active_flags }} Flags</span>{% endif %}
   </div>
 
   {% if p.body_html %}
@@ -103,7 +103,7 @@
 
 </div>
 
-{% if p.url.endswith((".jpg",".png")) and p.domain_obj and p.domain_obj.show_thumbnail %}
+{% if p.url and p.url.endswith((".jpg",".png")) and p.domain_obj and p.domain_obj.show_thumbnail %}
 <div class="row post-img-lg mt-3">
   <div class="col px-0">
     <a target="_blank" href="{{ p.permalink }}" rel="nofollow"><img src="{{ p.url }}" class="img-fluid" alt="post image"></a>
@@ -190,7 +190,7 @@
           <li class="list-group-item"><a href="javascript:void(0)" data-toggle="modal" data-dismiss="modal" data-target="#reportPostModal" onclick="report_postModal('{{ p.base36id }}')" class="d-block"><i class="fas fa-flag"></i>Flag</a></li>
           {% endif %}
           {% if v %}
-          {% if v.admin_level >=1 %}
+          {% if p.can_moderate(v) %}
           {% if p.is_banned or p.active_flags %}
           <li class="list-group-item"><a class="d-block" id="moderate-post-{{ p.base36id }}" href="javascript:void(0)" onclick="approvePost('{{ p.base36id }}')"><i class="fas fa-clipboard-check"></i>Approve</a></li>
           {% endif %}

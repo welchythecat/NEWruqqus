@@ -3,6 +3,7 @@ from .badges import *
 from .comment import *
 from .flags import *
 from .user import *
+from .guild import *
 from .submission import *
 from .votes import *
 from .images import *

@@ -83,13 +83,22 @@ os.environ.setdefault("LOG_LEVEL", "ERROR")
 from ruqqus import config  # noqa: E402
 from ruqqus.__main__ import app as flask_app  # noqa: E402
 from ruqqus.__main__ import db, limiter  # noqa: E402
-from ruqqus.classes import Comment, Submission, User, Vote  # noqa: E402
+from ruqqus.classes import (  # noqa: E402
+    Comment,
+    Guild,
+    GuildMember,
+    Submission,
+    User,
+    Vote,
+)
 from ruqqus.helpers.security import generate_hash  # noqa: E402
 
 TABLES = (
     "alts",
     "badge_defs",
     "badges",
+    "board_members",
+    "boards",
     "commentflags",
     "commentvotes",
     "comments",
@@ -258,6 +267,7 @@ class PostRecord:
     permalink: str
     fullname: str
     author_id: int
+    board_id: int | None
 
 
 @dataclass(frozen=True)
@@ -268,6 +278,17 @@ class CommentRecord:
     permalink: str
     parent_submission: int
     author_id: int
+
+
+@dataclass(frozen=True)
+class GuildRecord:
+    id: int
+    board_name: str
+    base36id: str
+    fullname: str
+    url: str
+    permalink: str
+    created_by: int | None
 
 
 @pytest.fixture
@@ -319,6 +340,7 @@ def make_post(db_session, make_user):
         body: str = "Body text for the test submission.",
         url: str = "",
         is_banned: bool = False,
+        guild: "GuildRecord | None" = None,
     ) -> PostRecord:
         if author is None:
             author = make_user()
@@ -330,6 +352,7 @@ def make_post(db_session, make_user):
             body=body,
             body_html=f"<p>{body}</p>",
             is_banned=is_banned,
+            board_id=guild.id if guild is not None else None,
         )
         db_session.add(post)
         db_session.commit()
@@ -340,6 +363,68 @@ def make_post(db_session, make_user):
             permalink=post.permalink,
             fullname=post.fullname,
             author_id=post.author_id,
+            board_id=post.board_id,
+        )
+
+    return _make
+
+
+@pytest.fixture
+def make_guild(db_session, make_user):
+    """
+    Create a guild directly through the ORM.
+
+    By default the founder also gets a ``GuildMember`` row with ``is_mod=True``,
+    which is what creating a guild through the site does.  Pass
+    ``founder_joins=False`` for a guild whose founder has no membership row --
+    ``Guild.is_moderator`` treats the founder as a moderator either way, so the
+    two cases are worth covering separately.
+
+    ``founderless=True`` leaves ``created_by`` NULL.  No route builds one of
+    these, but the column is nullable and ``Guild.moderators`` has to survive
+    it, so it is worth being able to construct.
+    """
+
+    def _make(
+        board_name: str = "testguild",
+        creator: UserRecord | None = None,
+        description: str = "A test guild.",
+        founder_joins: bool = True,
+        founderless: bool = False,
+    ) -> GuildRecord:
+        if founderless and creator is not None:
+            raise ValueError("founderless=True cannot be combined with creator=")
+
+        if founderless:
+            creator_id = None
+        else:
+            if creator is None:
+                creator = make_user()
+            creator_id = creator.id
+
+        guild = Guild(
+            board_name=board_name,
+            created_by=creator_id,
+            description=description,
+            description_html=f"<p>{description}</p>",
+        )
+        db_session.add(guild)
+        db_session.commit()
+
+        if founder_joins and creator_id is not None:
+            db_session.add(
+                GuildMember(board_id=guild.id, user_id=creator_id, is_mod=True)
+            )
+            db_session.commit()
+
+        return GuildRecord(
+            id=guild.id,
+            board_name=guild.board_name,
+            base36id=guild.base36id,
+            fullname=guild.fullname,
+            url=guild.url,
+            permalink=guild.permalink,
+            created_by=guild.created_by,
         )
 
     return _make
@@ -524,6 +609,7 @@ __all__ = [
     "PROJECT_ROOT",
     "TABLES",
     "CommentRecord",
+    "GuildRecord",
     "PostRecord",
     "UserRecord",
     "formkey",
@@ -533,5 +619,7 @@ __all__ = [
     "Submission",
     "Comment",
     "Vote",
+    "Guild",
+    "GuildMember",
     "config",
 ]

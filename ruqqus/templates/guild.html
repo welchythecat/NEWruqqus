@@ -1,0 +1,214 @@
+{% extends "default.html" %}
+
+{% block title %}
+<title>+{{ guild.board_name }} - Ruqqus</title>
+<meta name="description" content="{{ guild.description | default('A guild on Ruqqus') }}">
+{% endblock %}
+
+{% block pagetype %}guild{% endblock %}
+
+{% block enlargeThumbJS %}
+<script src="/assets/js/enlarge_thumb.js"></script>
+{% endblock %}
+
+{% block toggleView %}
+<script src="/assets/js/toggle_view.js"></script>
+{% endblock %}
+
+{% block sidebarLeftblock %}
+
+<div class="sidebar-section sidebar-about">
+  <div class="title">+{{ guild.board_name }}</div>
+  <div class="body">
+    {% if guild.description_html %}
+    <div class="text-small">{{ guild.description_html | safe }}</div>
+    {% else %}
+    <p class="text-small text-gray mb-0">This guild has no description yet.</p>
+    {% endif %}
+
+    <div class="text-small text-gray mt-3">
+      {{ guild.member_count }} member{{ '' if guild.member_count==1 else 's' }}
+      <span>&#183;</span>
+      {{ guild.post_count }} post{{ '' if guild.post_count==1 else 's' }}
+    </div>
+
+    {% if v %}
+    <div class="mt-3">
+      {% if guild.has_member(v) %}
+      <form action="{{ guild.url }}/leave" method="post">
+        <input type="hidden" name="formkey" value="{{ v.formkey }}">
+        <button class="btn btn-outline-secondary btn-block">Leave guild</button>
+      </form>
+      {% else %}
+      <form action="{{ guild.url }}/join" method="post">
+        <input type="hidden" name="formkey" value="{{ v.formkey }}">
+        <button class="btn btn-primary btn-block">Join guild</button>
+      </form>
+      {% endif %}
+    </div>
+    {% else %}
+    <div class="mt-3">
+      <a class="btn btn-primary btn-block" href="/signup">Join guild</a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="sidebar-section sidebar-moderators">
+  <div class="title">Moderators</div>
+  <div class="body">
+    {% if guild.moderators %}
+    <ul class="no-bullets dashboard-list pl-0">
+      {% for mod in guild.moderators %}
+      <li class="dashboard-item">
+        <a class="dashboard-link" href="{{ mod.permalink }}">
+          <i class="fas fa-user-circle fa-width-rem"></i>{{ mod.username }}
+          {% if guild.created_by == mod.id %}
+          <small class="text-gray">(founder)</small>
+          {% endif %}
+        </a>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="text-small text-gray mb-0">This guild has no moderators.</p>
+    {% endif %}
+
+    {% if v and guild.is_moderator(v) %}
+    <div class="mt-3">
+
+      <form action="{{ guild.url }}/add_mod" method="post" class="form-inline">
+        <input type="hidden" name="formkey" value="{{ v.formkey }}">
+        <input class="form-control form-control-sm mr-2 mb-2" type="text"
+        name="username" placeholder="Username" required>
+        <button class="btn btn-outline-secondary btn-sm mb-2">Add mod</button>
+      </form>
+
+      <form action="{{ guild.url }}/remove_mod" method="post" class="form-inline">
+        <input type="hidden" name="formkey" value="{{ v.formkey }}">
+        <input class="form-control form-control-sm mr-2 mb-2" type="text"
+        name="username" placeholder="Username" required>
+        <button class="btn btn-outline-secondary btn-sm mb-2">Remove mod</button>
+      </form>
+
+      <small class="form-text text-muted">
+        The founder cannot be removed. You must be a member of the guild to be
+        added as a moderator.
+      </small>
+
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% if v and guild.is_moderator(v) %}
+<div class="sidebar-section sidebar-guild-edit">
+  <div class="title">Guild settings</div>
+  <div class="body">
+    <form action="{{ guild.url }}/edit" method="post">
+      <input type="hidden" name="formkey" value="{{ v.formkey }}">
+      <label for="description" class="text-small">Description</label>
+      <textarea class="form-control form-control-sm" id="description"
+      name="description" rows="4" maxlength="512">{{ guild.description }}</textarea>
+      <button class="btn btn-outline-secondary btn-sm btn-block mt-2">Save description</button>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block content %}
+
+<div class="row no-gutters">
+
+  <div class="col-12">
+
+    <div class="card mb-3">
+
+      <div class="card-header bg-white">
+        <h5 class="mb-0">
+          <a href="{{ guild.url }}" class="stretched-link">+{{ guild.board_name }}</a>
+        </h5>
+        {% if guild.description %}
+        <div class="text-small text-gray mb-0">{{ guild.description | truncate(200, False, '...', 0) }}</div>
+        {% endif %}
+      </div>
+
+    </div>
+
+    <!-- Sort bar, same markup and behaviour as the front page -->
+
+    <div class="flex-row tab-bar">
+
+      <ul class="nav post-nav mr-auto">
+        <li class="nav-item">
+          <a class="nav-link{% if sort_method=='hot' %} active{% endif %}" href="?sort=hot"><i class="fas fa-fire"></i>Hot</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link{% if sort_method=='top' %} active{% endif %}" href="?sort=top"><i class="fas fa-arrow-alt-circle-up"></i>Top</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link{% if sort_method=='new' %} active{% endif %}" href="?sort=new"><i class="fas fa-asterisk"></i>New</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link{% if sort_method=='disputed' %} active{% endif %}" href="?sort=disputed"><i class="fas fa-bullhorn"></i>Disputed</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link{% if sort_method=='activity' %} active{% endif %}" href="?sort=activity"><i class="fas fa-comments"></i>Activity</a>
+        </li>
+      </ul>
+
+    </div>
+
+    <div class="row no-gutters">
+
+      <div class="col-12">
+
+        <div class="posts" id="posts">
+
+          {% include "submission_listing.html" %}
+
+        </div>
+
+        {% if not listing %}
+        <div class="card">
+          <div class="card-body text-center">
+            <p class="mb-0 text-gray">No one has posted in this guild yet.</p>
+            {% if v %}
+            <a class="btn btn-primary btn-sm mt-3" href="/submit">Create post</a>
+            {% endif %}
+          </div>
+        </div>
+        {% endif %}
+
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+
+{% endblock %}
+
+{% block pagenav %}
+<nav aria-label="Page navigation">
+  <ul class="pagination pagination-sm mb-0">
+    {% if page>1 %}
+    <li class="page-item">
+      <small><a class="page-link" href="?sort={{ sort_method }}&page={{ page-1 }}" tabindex="-1">Prev</a></small>
+    </li>
+    {% else %}
+    <li class="page-item disabled"><span class="page-link">Prev</span></li>
+    {% endif %}
+    {% if next_exists %}
+    <li class="page-item">
+      <small><a class="page-link" href="?sort={{ sort_method }}&page={{ page+1 }}">Next</a></small>
+    </li>
+    {% else %}
+    <li class="page-item disabled"><span class="page-link">Next</span></li>
+    {% endif %}
+  </ul>
+</nav>
+{% endblock %}

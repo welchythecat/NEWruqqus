@@ -7,6 +7,7 @@ from werkzeug.utils import safe_join
 from ruqqus.helpers.wrappers import *
 from ruqqus.__main__ import app, limiter
 from ruqqus.classes import *
+from .posts import submit_page
 
 # Assets live in ruqqus/assets/.  Resolved against the package directory
 # rather than the process working directory, so the app can be started from
@@ -61,7 +62,7 @@ def notifications(v):
 @app.route("/submit", methods=["GET"])
 @is_not_banned
 def submit_get(v):
-    return render_template("submit.html", v=v)
+    return submit_page(v)
 
 @app.route("/about")
 def about_index():

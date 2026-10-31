@@ -36,10 +36,10 @@ If you are installing from scratch you do not need this file — read
 | Alembic | unversioned | 1.20.1 |
 | Web server | gunicorn 19.9.0 + gevent 1.4.0 | gunicorn 26.2.0, sync workers |
 | Redis client | not pinned | redis 8.1.0 |
-| Schema source | `schema.txt` dump | Alembic migration `0001_initial` |
+| Schema source | `schema.txt` dump | Alembic migrations `0001_initial` + `0002_guilds` |
 | Configuration | hardcoded + Heroku config vars | environment variables + `.env` |
 | Deploy | Heroku only | Docker Compose, or bare metal; see [INSTALL.md](INSTALL.md) |
-| Tests | `test.py` (contained only `pass`) | 246 pytest cases + GitHub Actions |
+| Tests | `test.py` (contained only `pass`) | 377 pytest cases (358 passing, 19 xfailing) + GitHub Actions |
 | Password hashing | `pbkdf2:sha512` | `scrypt`, with transparent upgrade of old hashes (see §8) |
 | Guilds (communities) | schema tables only, no code | **not implemented** — see §5 |
 
@@ -136,17 +136,18 @@ comes from `SITE_URL`.
 - **The schema is managed by Alembic.** Run `alembic upgrade head` (or
   `scripts/startup.sh`, which does it on every boot). `schema.txt` is kept as a
   read-only reference dump of the original schema; it is not used at runtime.
-- **13 tables**, unchanged from the original: `alts`, `badge_defs`, `badges`,
+- **15 tables**: `alts`, `badge_defs`, `badges`, `board_members`, `boards`,
   `commentflags`, `commentvotes`, `comments`, `domains`, `flags`, `images`,
   `notifications`, `submissions`, `users`, `votes`. Plus `alembic_version`.
 - **Tables that were removed because nothing reads or writes them:**
   `dms`, `ips`, `userflags`.
-- **`boards` and `submissions.board_id` were also dropped — but for a different
-  reason.** They are the schema hooks for guilds (communities), which is a core
-  feature of the product. This snapshot of the application has **no guild code
-  at all** — no model, no routes, no templates, and not one occurrence of the
-  word "guild" — so the hooks were orphaned. See
-  [§5](#5-removed-and-replaced-features) before deciding to drop them for good.
+- **`boards` and `submissions.board_id` are the schema hooks for guilds
+  (communities).** They were dropped in the first release because the source
+  snapshot had no guild code at all; they are now **restored under their
+  original names** by the `0002_guilds` migration, along with a new
+  `board_members` table. Keeping the historical table name is what lets a
+  database that still carries the original `boards` table keep its guilds
+  across an upgrade. See [§5](#5-removed-and-replaced-features).
 - **PostgreSQL row-wise functions are part of the schema.** `ups()`, `downs()`,
   `age()`, `comment_count()` and friends are *functions*, not columns. The ORM
   declares them with `server_default=FetchedValue()` so every `SELECT` includes
@@ -193,7 +194,7 @@ applicable, a replacement.
 
 | Feature | Status | Reason | Replacement |
 |---|---|---|---|
-| **Guilds (communities)** | **Not present** | This is a core product feature, and it is missing from the source snapshot rather than removed by the modernization. The schema had the hooks (`boards` table, `submissions.board_id`) but there is no `Board` model in `ruqqus/classes/`, no guild route in `ruqqus/routes/`, no guild template, and zero occurrences of "guild" in the code. Posts are flat and unclassified. | **Needs building, not configuring.** Minimum to restore: re-add `boards(id, board_name, is_banned, created_utc)` and `submissions.board_id` to `migrations/versions/`, add a `Board` model, a guild page route, and a board picker on `/submit`. Until then, the schema keeps them out (see §4) so the migration matches the code. |
+| **Guilds (communities)** | **Built** | This was a core product feature missing from the source snapshot rather than removed by the modernization. The schema had the hooks (`boards` table, `submissions.board_id`) but there was no `Guild` model in `ruqqus/classes/`, no guild route in `ruqqus/routes/`, no guild template, and zero occurrences of "guild" in the code. Posts were flat and unclassified. | **Built, not configured.** The `0002_guilds` migration restores `boards` and `submissions.board_id` under their historical names and adds `board_members`. See [§5.1](#51-guilds-what-is-historical-and-what-is-new) for exactly what was restored and what was newly added. |
 | Reddit integration (`routes/reddit_api.py`) | **Removed** | Hardcoded dependency on a third-party service plus API keys; the feature was Ruqqus-specific cross-posting. | Re-add behind a config flag if you need it. |
 | Reddit account linking, settings page UI | **Replaced** | `settings_profile.html` offered "Link Reddit" / "Unlink Reddit" buttons posting to `/api/get_reddit_auth` and `/api/del_reddit_name`, both of which died with `routes/reddit_api.py` — the buttons would have 404'd. | The two forms and their `{% if v.reddit_username %}` conditional are gone; the section now reads "No third-party account integrations are available in this build." Restore by re-adding the route and swapping that block back. |
 | Mailgun e-mail delivery | **Replaced** | Hardcoded provider and credentials. | `MAIL_BACKEND=smtp` with your own SMTP host, or `MAIL_BACKEND=console` to print mail to the log. |
@@ -207,6 +208,102 @@ applicable, a replacement.
 | `CODEOWNERS` | **Removed** | Named the upstream author's personal address as the required reviewer for every file — wrong for this fork and a privacy leak. | Add your own if you publish this. |
 | `docs/CNAME` | **Removed** | Hardcoded `www.ruqqus.org`. | Let GitHub Pages use its default `*.github.io` host, or add your own domain. |
 | macOS Finder alias masquerading as `templates/userpage.html` | **Not removed** | Earlier audit notes described it as an alias; it is in fact a live 13,993-byte template rendered by `classes/user.py`. | — |
+
+### 5.1 Guilds: what is historical and what is new
+
+Guilds are the communities that posts are filed under. The `0002_guilds`
+migration builds them. Two things are worth separating, because one is a
+restoration and the other is a design decision made for this build.
+
+**Restored, under the original names** — so a database that still carries the
+original `boards` table keeps its guilds across an upgrade:
+
+| Object | Columns | Note |
+|---|---|---|
+| `boards` | `id`, `board_name`, `is_banned`, `created_utc` | Exactly the columns in `schema.txt`. `id` stays `Integer`, matching `submissions.board_id`. |
+| `submissions.board_id` | — | Nullable. Posts made before guilds existed, and posts filed nowhere, both stay valid. |
+
+**New in this build** — these have no counterpart in `schema.txt` and are an
+addition, not a restoration. Nothing was removed to make room for them:
+
+| Object | Purpose |
+|---|---|
+| `boards.created_by` | The founder. Nullable: the column allows a guild with no owner, though no route builds one. |
+| `boards.description`, `boards.description_html` | The guild's blurb, Markdown in and sanitized HTML out — the same pipeline posts use. |
+| `board_members` | The guild's roster: one row per member, with an `is_mod` flag. **This is the membership and per-guild moderator table.** The original schema had no such table. |
+| `Guild` model in `ruqqus/classes/guild.py` | `__tablename__` is `"boards"` deliberately, not `"guilds"`. |
+| `GuildMember` model in the same file | Maps `board_members`. |
+
+**Design decisions**, all chosen for this build rather than recovered from the
+original:
+
+- **Anyone may create a guild.** No application, no approval step, no
+  privilege required.
+- **Membership is open.** Joining and leaving is a click; there is no
+  membership request or approval queue. A guild page shows a member count.
+- **Guilds have their own moderators**, separate from the site's. A guild
+  moderator can change that guild's description and appoint or remove other
+  moderators *of that guild*, and has no power anywhere else. Appointing
+  someone who is not a member of the guild is refused — the roster would
+  otherwise list people who cannot see what they moderate.
+- **The founder cannot be removed as a moderator.** `Guild.is_moderator`
+  returns true for the founder regardless of any membership row, so
+  "removing" them would be a silent no-op; the route returns 403 instead.
+  This is the one tie that cannot be broken by kicking everyone out.
+- **Site admins outrank every guild moderator** and may moderate any guild.
+- **URLs are `/guilds` for the directory and `/+<name>` for one guild.** The
+  `+` prefix means the guild route cannot shadow any other route, which is
+  checked by `tests/test_guilds.py::TestGuildRoutes`.
+- **Guild names** are 3-32 characters of letters, numbers and underscore.
+  They go straight into the URL, so they are validated strictly and a bad one
+  is reported rather than silently normalized.
+
+**Moderation and the personal feed**, built after the list above and equally an
+addition:
+
+| Behaviour | Where |
+|---|---|
+| Guild moderators may **remove and approve the posts filed in their own guild**, and the comments under them. | `Submission.can_moderate(user)`, `Comment.can_moderate(user)` |
+| `/` has a **"my guilds" feed**. `/?feed=mine` narrows the front page to the guilds the signed-in user has joined. `/?feed=all`, or no parameter at all, is the historical global listing and is unchanged. | `frontlist(..., user_id=...)`, `home()` |
+
+Both the endpoints and the moderation menus consult the *same* predicate, so a
+button that is drawn is a button that works. The feed's personalisation
+argument is a parameter of `frontlist` rather than something read from
+`session`, because that function is `@cache.memoize`'d and the cache key is
+built from its arguments — a user read inside the body would have had one
+user's feed cached under a key every visitor shares.
+
+**What did not move.** Guild moderators are an addition to the site-staff
+rules, not a widening of them:
+
+| Action | Site staff | Guild moderator |
+|---|---|---|
+| Remove / approve a post | `admin_level >= 3` | their own guild, only |
+| Remove / approve a comment | `admin_level >= 1` | their own guild, only |
+
+**Two pre-existing disagreements this resolved.** Before this change the menus
+and the routes did not agree, in opposite directions:
+
+| | The menu was drawn at | The route allowed | Consequence |
+|---|---|---|---|
+| Posts | `admin_level >= 1` | `admin_level >= 3` | Levels 1–2 saw a Remove button that always 403'd. |
+| Comments | `admin_level >= 3` | `admin_level >= 1` | Level 1 could remove comments but was never shown the control. |
+
+Both now use the route's own historical threshold. The visible consequence is
+that site moderators of level 1 and 2 no longer see *post* Remove/Approve
+controls — those never worked, clicking one always returned 403 — and they now
+do see the *comment* controls they have always been allowed to use. **No
+permission was granted or taken away; only the menus moved.**
+
+**Still not built** (so not claimed):
+
+- A guild moderator still cannot **pin or distinguish** a post in their own
+  guild. `/api/sticky` remains `admin_level >= 3` and `/api/distinguish`
+  remains `admin_level >= 1`. This is a deliberate default rather than an
+  oversight — pinning is how a guild keeps one post on top of its own page, so
+  it is the natural next power to grant. Say if you want it.
+- No per-guild feed URL (an RSS/Atom equivalent of `/?feed=mine`), and no
+  combined feed across guilds with different sorts per guild.
 
 ---
 
@@ -274,10 +371,11 @@ If you are upgrading a live original-Ruqqus database rather than starting fresh:
    domain now comes from here, including e-mail links and the HTTP→HTTPS
    redirect.
 5. **Run `alembic upgrade head`.** The `0001_initial` migration creates the
-   schema from scratch; it is not written against a pre-existing database. If
-   you have data, you will need to stamp and adapt.
-6. **Drop `ips`, `boards`, `dms`, `userflags`** if they are still present and
-   you no longer need their contents.
+   schema from scratch and `0002_guilds` adds the guild tables on top; it is
+   not written against a pre-existing database. If you have data, you will
+   need to stamp and adapt.
+6. **Drop `ips`, `dms`, `userflags`** if they are still present and you no
+   longer need their contents. Keep `boards` — guilds use it now.
 7. **Re-point mail.** `MAILGUN_KEY` no longer does anything.
 8. **Rate limiting strategy changed** from `fixed-window-elastic-expiry` (no
    longer exists in `limits`) to `fixed-window`. See §8.
@@ -320,14 +418,46 @@ document said otherwise.
 - **A repeated comment now lands where the first one did.** The duplicate
   redirect used the comment's own permalink while the create path used
   `#comment-N` on the post page; both now use the latter.
+- **A post with no URL no longer crashes every listing it appears on.**
+  `submission_listing.html` and `submission.html` called `p.url.endswith(...)`
+  unguarded; `submissions.url` is nullable and defaults to NULL, so any such
+  row raised `UndefinedError: 'None' has no attribute 'endswith'` on the front
+  page and on the post page. `POST /submit` always writes `""` rather than
+  NULL, which is why this stayed latent — but the column allows it, and an ORM
+  insert or a hand-edited row was enough to take the front page down. All four
+  call sites now test `p.url` first. Found by the guild work's HTTP smoke test,
+  not by the suite, because the test factory also writes `""`.
+- **Guilds are now built.** The one feature the source snapshot never had. See
+  [§5.1](#51-guilds-what-is-historical-and-what-is-new) for what is a
+  restoration of the historical schema and what is an addition made here.
+- **Guild moderators can now moderate their own guild, and the moderation
+  menus match the moderation routes.** The two disagreed before, in opposite
+  directions: the *post* menu was drawn at `admin_level >= 1` while
+  `/api/ban_post` required 3, so a level 1 moderator saw a Remove button that
+  403'd; the *comment* menu was drawn at `admin_level >= 3` while
+  `/api/ban_comment` allowed 1, so a level 1 moderator could remove comments
+  but was never shown the control. Both are now gated on
+  `Submission.can_moderate` / `Comment.can_moderate`, which is the same
+  predicate the routes check. Site-staff thresholds are unchanged. Full table
+  in [§5.1](#51-guilds-what-is-historical-and-what-is-new).
+- **The front page has a "my guilds" feed.** `/?feed=mine` shows only posts
+  filed under guilds the signed-in user has joined. The 30-second response
+  cache was the hazard here: `frontlist` is `@cache.memoize`'d and the cache
+  key comes from its arguments, so the user id is an argument, and the
+  unfiltered front page is a separate cache entry.
+- **`/api/ban_comment` and `/api/unban_comment` now require a CSRF formkey.**
+  They were among the routes listed as unguarded below. The shared `post()`
+  helper in `default.html` has always sent the formkey, so the UI is
+  unaffected.
 
 ### Missing core feature
 
-- **Guilds (communities) do not exist in this source snapshot.** The database
-  schema had the hooks but the application never had the code. This is the one
-  entry on the feature list that cannot be restored by configuration or by
-  undoing something this migration did — see
-  [§5](#5-removed-and-replaced-features) for the shape of the work.
+- **None outstanding.** Guilds (communities) were the one feature the source
+  snapshot never had — the database had the hooks but the application had no
+  code for it. They are now built, including per-guild moderation and the
+  "my guilds" feed; see
+  [§5.1](#51-guilds-what-is-historical-and-what-is-new) for exactly what that
+  includes and the two smaller things still open.
 
 ### Blocking
 
@@ -342,8 +472,10 @@ document:
 
 - The signup formkey is bound to a timestamp but its 120-second expiry check is
   commented out, so a captured form stays valid indefinitely.
-- CSRF formkeys are missing from `/api/sticky` and four comment-moderation
-  routes, and from both `/api/flag/*` routes.
+- CSRF formkeys are missing from `/api/sticky` and the two
+  comment-distinguishing routes, and from both `/api/flag/*` routes.
+  (`/api/ban_comment` and `/api/unban_comment` had the same gap and now carry
+  the check.)
 - Session cookies are `HttpOnly` but not `Secure` or `SameSite`.
 - Open redirects: `POST /login` accepts `?redirect=`, and `edit_comment`
   redirects to `current_page`, both unvalidated.

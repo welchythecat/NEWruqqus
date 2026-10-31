@@ -21,6 +21,21 @@ BAN_REASONS=['',
             ]
 
 
+def submit_page(v, error=None, **extra):
+    """
+    Render ``submit.html`` with the guild picker populated.
+
+    Every path that renders the form goes through here, so a validation error
+    cannot drop the picker and lose the guild the user had chosen.
+    """
+    guilds = (db.query(Guild)
+                 .filter(Guild.is_banned == False)  # noqa: E712
+                 .order_by(Guild.board_name)
+                 .all())
+
+    return render_template("submit.html", v=v, error=error, guilds=guilds, **extra)
+
+
 
 
 
@@ -78,11 +93,11 @@ def submit_post(v):
     url=request.form.get("url","")
 
     if len(title)<10:
-        return render_template("submit.html", v=v, error="Please enter a better title.")
+        return submit_page(v, error="Please enter a better title.")
 
     parsed_url=urlparse(url)
     if not (parsed_url.scheme and parsed_url.netloc) and not request.form.get("body"):
-        return render_template("submit.html", v=v, error="Please enter a URL or some text.")
+        return submit_page(v, error="Please enter a URL or some text.")
 
     #Force https for submitted urls.  This has to happen before the duplicate
     #check below: the row stores the https form, so matching on the raw input
@@ -110,7 +125,19 @@ def submit_post(v):
     if dup:
         return redirect(dup.permalink)
 
-    
+    #File the post under a guild.  The picker sends the guild's name, which is
+    #unique and needs no decoding -- an id would have to come back through
+    #base36decode, which raises on junk rather than returning nothing.  An
+    #empty value means "post nowhere", which is still a valid post.
+    board_id=None
+    guild_name=(request.form.get("guild") or "").strip()
+    if guild_name:
+        guild=db.query(Guild).filter_by(board_name=guild_name).first()
+        if not guild or guild.is_banned:
+            return submit_page(v, error="That guild does not exist.")
+        board_id=guild.id
+
+
     #check for domain specific rules
 
     parsed_url=urlparse(url)
@@ -131,7 +158,7 @@ def submit_post(v):
 
     if domain_obj:
         if not domain_obj.can_submit:
-            return render_template("submit.html",v=v, error=BAN_REASONS[domain_obj.reason])
+            return submit_page(v, error=BAN_REASONS[domain_obj.reason])
 
     #Huffman-Ohanian growth method
     if v.admin_level >=2:
@@ -194,7 +221,8 @@ def submit_post(v):
                         body=body,
                         body_html=body_html,
                         embed_url=embed,
-                        domain_ref=domain_obj.id if domain_obj else None
+                        domain_ref=domain_obj.id if domain_obj else None,
+                        board_id=board_id
                         )
 
     db.add(new_post)

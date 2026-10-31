@@ -255,10 +255,37 @@ class User(Base):
         return self.submissions.filter_by(is_banned=False).count()
 
     @property
-    @cache.memoize(timeout=60) 
+    @cache.memoize(timeout=60)
     def comment_count(self):
 
         return self.comments.filter_by(is_banned=False, is_deleted=False).count()
+
+    @property
+    @lazy
+    def is_guild_moderator(self):
+        """
+        Whether this user moderates at least one guild.
+
+        This only decides whether the moderation *scripts* need loading at all
+        -- see ``default.html``.  The buttons themselves are gated per item by
+        ``Submission.can_moderate`` and ``Comment.can_moderate``, and those
+        same predicates are re-checked by the endpoints, so a false positive
+        here costs two extra script tags and nothing more.
+
+        Both ways of being a guild moderator are covered: holding an ``is_mod``
+        membership row, and being the guild's founder, which
+        ``Guild.is_moderator`` honours even with no membership row at all.
+
+        ``guild`` imports ``user`` at module scope, so this imports back inside
+        the method to avoid the cycle.
+        """
+        from .guild import Guild, GuildMember
+
+        return (
+            db.query(GuildMember).filter_by(user_id=self.id, is_mod=True).first()
+            is not None
+            or db.query(Guild).filter_by(created_by=self.id).first() is not None
+        )
 
     @property
     #@cache.memoize(timeout=60)

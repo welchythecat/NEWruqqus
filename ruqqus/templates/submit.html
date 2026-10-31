@@ -131,6 +131,17 @@
                                         <small class="format"><i class="fas fa-link"></i></small>
                                     </div>
                                 </div>
+				<label for="guild" class="mt-3">Guild</label>
+
+                                <select class="form-control" id="guild" name="guild" aria-describedby="guildHelp">
+                                  <option value="">No guild</option>
+                                  {% for guild in guilds|default([]) %}
+                                  <option value="{{ guild.board_name }}" {% if request.form.get('guild','')==guild.board_name %}selected{% endif %}>+{{ guild.board_name }}</option>
+                                  {% endfor %}
+                                </select>
+
+                                <small class="form-text text-muted">Optional. The guild this post is filed under. <a href="/guilds">Browse guilds</a> or <a href="/create_guild">create one</a>.</small>
+
 				{% if v.admin_level >=2 %}
 				<label for="username" class="mt-3">Post as</label>
 				<input class="form-control" name="username">

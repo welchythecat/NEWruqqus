@@ -1,0 +1,130 @@
+{% extends "default.html" %}
+
+{% block title %}
+<title>Guilds - Ruqqus</title>
+<meta name="description" content="Browse the guilds on Ruqqus">
+{% endblock %}
+
+{% block pagetype %}guilds{% endblock %}
+
+{% block sidebarLeftblock %}
+
+<div class="sidebar-section sidebar-filters sticky-63">
+  <div class="title">Guilds</div>
+  <div class="body">
+    <ul class="no-bullets filter-list pl-0">
+      <li class="filter-item">
+        <a class="filter-link active" href="/guilds"><i class="fas fa-compass fa-width-rem"></i>All guilds</a>
+      </li>
+      {% if v %}
+      <li class="filter-item">
+        <a class="filter-link" href="/create_guild"><i class="fas fa-plus-circle fa-width-rem"></i>Create a guild</a>
+      </li>
+      {% endif %}
+    </ul>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block content %}
+
+<div class="row no-gutters">
+
+  <div class="col-12">
+
+    <div class="card mb-3">
+
+      <div class="card-header bg-white d-flex align-items-center">
+        <h5 class="mb-0">Guilds</h5>
+        {% if v %}
+        <a class="btn btn-primary btn-sm ml-auto" href="/create_guild">Create a guild</a>
+        {% else %}
+        <a class="btn btn-primary btn-sm ml-auto" href="/signup">Create a guild</a>
+        {% endif %}
+      </div>
+
+      {% if listing %}
+
+      <ul class="list-group list-group-flush">
+
+        {% for guild in listing %}
+
+        <li class="list-group-item">
+
+          <div class="d-flex align-items-center">
+
+            <div class="mr-3">
+              <a href="{{ guild.url }}">
+                <span class="badge badge-light border rounded-circle p-3">
+                  <i class="fas fa-users text-gray-400"></i>
+                </span>
+              </a>
+            </div>
+
+            <div>
+              <h6 class="mb-0">
+                <a href="{{ guild.url }}">+{{ guild.board_name }}</a>
+                {% if guild.is_moderator(v) %}
+                <i class="fad fa-shield text-admin" data-toggle="tooltip"
+                data-placement="bottom" title="You moderate this guild"></i>
+                {% endif %}
+              </h6>
+              {% if guild.description %}
+              <div class="text-small text-gray mb-0">{{ guild.description | truncate(140, False, '...', 0) }}</div>
+              {% endif %}
+            </div>
+
+            <div class="text-right ml-auto">
+              <div class="text-small text-gray">
+                {{ guild.member_count }} member{{ '' if guild.member_count==1 else 's' }}
+              </div>
+              <div class="text-small text-gray">
+                {{ guild.post_count }} post{{ '' if guild.post_count==1 else 's' }}
+              </div>
+            </div>
+
+          </div>
+
+        </li>
+
+        {% endfor %}
+
+      </ul>
+
+      {% else %}
+
+      <div class="card-body text-center">
+        <p class="mb-0 text-gray">There are no guilds yet.</p>
+      </div>
+
+      {% endif %}
+
+    </div>
+
+  </div>
+
+</div>
+
+{% endblock %}
+
+{% block pagenav %}
+<nav aria-label="Page navigation">
+  <ul class="pagination pagination-sm mb-0">
+    {% if page>1 %}
+    <li class="page-item">
+      <small><a class="page-link" href="?page={{ page-1 }}" tabindex="-1">Prev</a></small>
+    </li>
+    {% else %}
+    <li class="page-item disabled"><span class="page-link">Prev</span></li>
+    {% endif %}
+    {% if next_exists %}
+    <li class="page-item">
+      <small><a class="page-link" href="?page={{ page+1 }}">Next</a></small>
+    </li>
+    {% else %}
+    <li class="page-item disabled"><span class="page-link">Next</span></li>
+    {% endif %}
+  </ul>
+</nav>
+{% endblock %}

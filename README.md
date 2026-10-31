@@ -57,10 +57,16 @@ deletion, and per-comment votes.
 Upvotes and downvotes on both posts and comments, with score calculated
 server-side in PostgreSQL.
 
-**Guilds** *(not implemented — see [Known issues](#known-issues))*
-The original schema has a `boards` table and a `submissions.board_id` column,
-but this snapshot of the application contains no guild/board code at all: no
-model, no routes, no templates. Posts are therefore flat and unclassified.
+**Guilds**
+Communities that posts are filed under. Anyone can create one at `/guilds`;
+each has its own moderators, an open membership roster with a member count,
+and its own page at `/+name`. Posts can be filed under a guild from `/submit`.
+Guild moderators can remove and approve the posts and comments in their own
+guild, and the front page has a "my guilds" feed at `/?feed=mine` alongside
+the global listing. The `boards` table and `submissions.board_id` come from
+the original schema; membership, per-guild moderators and the personal feed
+are new in this build. See
+[MIGRATION_NOTES.md §5.1](MIGRATION_NOTES.md#51-guilds-what-is-historical-and-what-is-new).
 
 **Moderation**
 Flagging of posts and comments, moderator and admin levels with promotion,
@@ -246,8 +252,9 @@ precedence over it.
 │   ├── mail/                Outgoing mail and the e-mail-verification handler
 │   ├── templates/           Jinja2 templates — the original front end
 │   └── assets/              CSS (from SCSS), JavaScript, images
-├── migrations/              Alembic migrations (0001_initial builds the schema)
-├── tests/                   Pytest suite (246 cases)
+├── migrations/              Alembic migrations (0001_initial builds the schema,
+│                            0002_guilds adds the guild tables)
+├── tests/                   Pytest suite (377 cases)
 ├── scripts/                 create_admin.py, startup.sh, healthcheck.py,
 │                            migrate_old_db.py, css.sh
 ├── docs/                    Project documentation site
@@ -375,15 +382,12 @@ Both `.css` files are committed, so you only need `sass` if you change the
 
 ## Known issues
 
-**Guilds (communities) are not implemented.** This is a listed core feature, and
-it is absent from this snapshot of the application rather than disabled by the
-modernization. The original database schema has the hooks — a `boards` table and
-a `submissions.board_id` column — but there is no `Board` model, no guild
-routes and no guild templates anywhere in the code, and no occurrence of the
-word "guild". Posts are flat and unclassified. This migration keeps the hooks
-out of the schema; re-adding them is a feature build, not a config change. Full
-detail and a suggested route to implement it are in
-[MIGRATION_NOTES.md](MIGRATION_NOTES.md#5-removed-and-replaced-features).
+**Guild moderators cannot pin posts in their guild.** They can change the
+guild's description, manage its moderator team, and remove and approve its
+posts and comments, but stickying is still site-admin only. That is a
+deliberate default rather than a gap — say if you want it granted. Full detail
+is in
+[MIGRATION_NOTES.md §5.1](MIGRATION_NOTES.md#51-guilds-what-is-historical-and-what-is-new).
 
 **Self-service signup returns 500.** `badge_defs` is not seeded by the
 migration, and every signup inserts `badge_id=1`, which violates a foreign key.
