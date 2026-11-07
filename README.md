@@ -62,8 +62,11 @@ Communities that posts are filed under. Anyone can create one at `/guilds`;
 each has its own moderators, an open membership roster with a member count,
 and its own page at `/+name`. Posts can be filed under a guild from `/submit`.
 Guild moderators can remove and approve the posts and comments in their own
-guild, and the front page has a "my guilds" feed at `/?feed=mine` alongside
-the global listing. The `boards` table and `submissions.board_id` come from
+guild, and pin one post to the top of the guild's page — a guild pin is a
+separate thing from the site-wide sticky, so a guild's pin can never displace
+a front-page announcement. The front page has a "my guilds" feed at
+`/?feed=mine` alongside the global listing. The `boards` table and
+`submissions.board_id` come from
 the original schema; membership, per-guild moderators and the personal feed
 are new in this build. See
 [MIGRATION_NOTES.md §5.1](MIGRATION_NOTES.md#51-guilds-what-is-historical-and-what-is-new).
@@ -254,7 +257,7 @@ precedence over it.
 │   └── assets/              CSS (from SCSS), JavaScript, images
 ├── migrations/              Alembic migrations (0001_initial builds the schema,
 │                            0002_guilds adds the guild tables)
-├── tests/                   Pytest suite (377 cases)
+├── tests/                   Pytest suite (411 cases)
 ├── scripts/                 create_admin.py, startup.sh, healthcheck.py,
 │                            migrate_old_db.py, css.sh
 ├── docs/                    Project documentation site
@@ -382,11 +385,11 @@ Both `.css` files are committed, so you only need `sass` if you change the
 
 ## Known issues
 
-**Guild moderators cannot pin posts in their guild.** They can change the
-guild's description, manage its moderator team, and remove and approve its
-posts and comments, but stickying is still site-admin only. That is a
-deliberate default rather than a gap — say if you want it granted. Full detail
-is in
+**Guild moderators cannot distinguish posts in their guild.** They can change
+the guild's description, manage its moderator team, pin and unpin posts, and
+remove and approve its posts and comments. Distinguishing ("speaking
+officially") is still author-only and site-staff-only. That is a deliberate
+default rather than a gap. Full detail is in
 [MIGRATION_NOTES.md §5.1](MIGRATION_NOTES.md#51-guilds-what-is-historical-and-what-is-new).
 
 **Self-service signup returns 500.** `badge_defs` is not seeded by the

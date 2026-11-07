@@ -199,6 +199,67 @@ def api_sticky_post(post_id, v):
 
     return (redirect(post.permalink), post)
 
+
+@app.route("/api/guild_pin/<post_id>", methods=["POST"])
+@is_not_banned
+@validate_formkey
+def api_guild_pin_post(post_id, v):
+    """
+    Pin or unpin a post inside its guild.
+
+    This is not the site-wide sticky above.  ``/api/sticky`` owns a single
+    slot for the whole site and is what heads the front page; it forcibly
+    unpins whichever post is currently in it.  If a guild moderator were
+    handed that route, pinning in their guild would silently knock the site
+    announcement off the front page.
+
+    A guild pin is scoped to one guild instead: one pinned post per guild, it
+    heads that guild's page, and it never touches ``stickied``.  A guild
+    moderator may pin in their own guild and nowhere else; a site
+    administrator may pin anywhere.  The rule lives in
+    ``Submission.can_guild_pin``, which is also what the Pin control is shown
+    under, so a button you can see is always a button that works.
+
+    Pinning a second post in the same guild unpins the first, which is the
+    one-pin-per-guild contract and matches how the site-wide sticky behaves.
+    """
+
+    post = db.query(Submission).filter_by(id=base36decode(post_id)).first()
+
+    if not post:
+        abort(404)
+
+    if not post.can_guild_pin(v):
+        abort(403)
+
+    if post.guild_pinned:
+        # Unpin.
+        post.guild_pinned = False
+        db.add(post)
+        db.commit()
+        return redirect(post.permalink)
+
+    # Pin, displacing whichever post holds this guild's pin, if any.
+    already_pinned = db.query(Submission).filter_by(
+        board_id=post.board_id,
+        guild_pinned=True,
+    ).first()
+
+    post.guild_pinned = True
+
+    if already_pinned and already_pinned.id != post.id:
+        already_pinned.guild_pinned = False
+        db.add(already_pinned)
+
+    db.add(post)
+    db.commit()
+
+    # A plain redirect: is_not_banned does not unwrap a (response, post)
+    # pair, so returning the ORM object alongside would make Flask try to
+    # read it as a status code.
+    return redirect(post.permalink)
+
+
 @app.route("/api/ban_comment/<c_id>", methods=["post"])
 @is_not_banned
 @validate_formkey

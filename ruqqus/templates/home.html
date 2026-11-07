@@ -1,10 +1,17 @@
 {% extends "default.html" %}
 
 {% block adminpanel %}
+{# The panel is reachable by a guild moderator now, but these two queues are
+   site-wide and are admin_level 3 on the routes.  Gating the links on the
+   same threshold keeps the panel free of links that would 403. #}
+{% if v.admin_level >=3 %}
 <div>
   <p><a href="/flagged/posts">Reported Posts</a></p>
   <p><a href="/flagged/comments">Reported Comments</a></p>
 </div>
+{% else %}
+<p class="text-center text-small text-muted mb-0">No admin actions available</p>
+{% endif %}
 {% endblock %}
 
 {% block enlargeThumbJS %}

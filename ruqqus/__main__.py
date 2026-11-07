@@ -26,7 +26,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from ruqqus import config
 from ruqqus.helpers.markdown_filter import attach_markdown_filter
 
-_version = "1.0.0"
+_version = "1.2.0"
 
 # --------------------------------------------------------------------------
 # Logging

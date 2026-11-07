@@ -181,7 +181,11 @@
         {% endif %}
 
         {% if v %}
-        {% if v.admin_level %}
+        {# A guild moderator moderates their own guild without any admin_level
+           at all, so "is this user site staff?" would hide the panel from the
+           very people it is now for.  Each control inside is gated on its own
+           condition -- a button you can see is always a button that works. #}
+        {% if v.admin_level or v.is_guild_moderator %}
         <div class="sidebar-section sidebar-adminpanel">
          <div class="title">Admin Panel</div>
          <div class="body">

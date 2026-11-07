@@ -21,6 +21,15 @@
 <input type="submit" value="{% if p.stickied %}Un-sticky{% else %}Sticky{% endif %}">
 </form>
 {% endif %}
+{# A guild pin is a different thing from the sticky above: it heads this
+   guild's page and never touches the site-wide slot.  Gate it on its own
+   predicate so a guild moderator with no admin_level still sees it. #}
+{% if p.can_guild_pin(v) %}
+<form action="/api/guild_pin/{{ p.base36id }}" method="post">
+<input type="hidden" name="formkey" value="{{ v.formkey }}">
+<input type="submit" value="{% if p.guild_pinned %}Unpin from +{{ p.guild.board_name }}{% else %}Pin in +{{ p.guild.board_name }}{% endif %}">
+</form>
+{% endif %}
 {% if v.admin_level >=3 and v.id==p.author_id %}
 <form action="/api/distinguish/{{ p.base36id }}" method="post">
 <input type="hidden" name="formkey", value="{{ v.formkey }}">

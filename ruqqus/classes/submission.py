@@ -29,6 +29,10 @@ class Submission(Base):
     distinguish_level=Column(Integer, default=0)
     created_str=Column(String(255), default=None)
     stickied=Column(Boolean, default=False)
+    # A pin is scoped to one guild.  It is deliberately a different column from
+    # ``stickied``, which is a single site-wide slot used for front-page
+    # announcements -- see can_guild_pin().
+    guild_pinned=Column(Boolean, default=False)
     comments=relationship("Comment", lazy="dynamic", backref="submissions")
     body=Column(String(2000), default="")
     body_html=Column(String(2200), default="")
@@ -282,3 +286,32 @@ class Submission(Base):
             return True
 
         return self.guild is not None and self.guild.is_moderator(user)
+
+    def can_guild_pin(self, user):
+        """
+        Whether ``user`` may pin this post inside its guild.
+
+        This is a separate power from ``can_moderate`` and from the site-wide
+        sticky, and the separation is the whole point:
+
+        * ``stickied`` is one slot for the entire site.  It is the front-page
+          announcement and only a site administrator (level 3) may set it.
+          Widening that would let a guild moderator knock the site
+          announcement off the front page.
+
+        * ``guild_pinned`` is one slot *per guild*.  A guild moderator sets it
+          on a post in their own guild and it heads that guild's page.  It
+          never touches ``stickied``, so a guild pin can never displace the
+          front-page announcement and an administrator stickying a post never
+          unpins a guild's pin.
+
+        A post filed under no guild cannot be guild-pinned: there is no guild
+        page for it to head.  That case is what the site-wide sticky is for.
+        """
+        if not user or self.guild is None:
+            return False
+
+        if user.admin_level >= 3:
+            return True
+
+        return self.guild.is_moderator(user)

@@ -36,12 +36,12 @@ If you are installing from scratch you do not need this file — read
 | Alembic | unversioned | 1.20.1 |
 | Web server | gunicorn 19.9.0 + gevent 1.4.0 | gunicorn 26.2.0, sync workers |
 | Redis client | not pinned | redis 8.1.0 |
-| Schema source | `schema.txt` dump | Alembic migrations `0001_initial` + `0002_guilds` |
+| Schema source | `schema.txt` dump | Alembic migrations `0001`–`0003` |
 | Configuration | hardcoded + Heroku config vars | environment variables + `.env` |
 | Deploy | Heroku only | Docker Compose, or bare metal; see [INSTALL.md](INSTALL.md) |
-| Tests | `test.py` (contained only `pass`) | 377 pytest cases (358 passing, 19 xfailing) + GitHub Actions |
+| Tests | `test.py` (contained only `pass`) | 411 pytest cases, 19 xfailed (strict) + GitHub Actions |
 | Password hashing | `pbkdf2:sha512` | `scrypt`, with transparent upgrade of old hashes (see §8) |
-| Guilds (communities) | schema tables only, no code | **not implemented** — see §5 |
+| Guilds (communities) | schema tables only, no code | **built** — creation, membership, per-guild moderation, guild pins, "my guilds" feed; see §5 |
 
 Nothing in the front end was redesigned. Templates, CSS, Bootstrap 4 classes,
 the colour scheme, the layout and the copy are the original ones. Markup was
@@ -295,13 +295,30 @@ controls — those never worked, clicking one always returned 403 — and they n
 do see the *comment* controls they have always been allowed to use. **No
 permission was granted or taken away; only the menus moved.**
 
+**Guild pins.** A guild moderator can now **pin** a post in their own guild
+(`/api/guild_pin`), and it heads that guild's page. This is deliberately a
+*different* power from the site-wide sticky, and the separation is the whole
+point:
+
+| | `submissions.stickied` | `submissions.guild_pinned` |
+|---|---|---|
+| Scope | One slot, the whole site | One slot **per guild** |
+| Who can set it | `admin_level >= 3` only | A guild moderator, in their own guild |
+| Where it shows | Heads the front page | Heads the guild's page (`/+name`) |
+| Can it displace the other? | Never touches `guild_pinned` | Never touches `stickied` |
+
+Widening `/api/sticky` instead would have let any guild moderator knock the
+site announcement off the front page, so that route is untouched. `Submission
+.can_guild_pin` is the single source of truth and the Pin control is shown
+under exactly the same condition — a button you can see is always a button
+that works. The column is added by `0003_guild_pins`.
+
 **Still not built** (so not claimed):
 
-- A guild moderator still cannot **pin or distinguish** a post in their own
-  guild. `/api/sticky` remains `admin_level >= 3` and `/api/distinguish`
-  remains `admin_level >= 1`. This is a deliberate default rather than an
-  oversight — pinning is how a guild keeps one post on top of its own page, so
-  it is the natural next power to grant. Say if you want it.
+- A guild moderator still cannot **distinguish** a post in their own guild.
+  `/api/distinguish` remains `admin_level >= 1` and is the author's own call
+  ("speaking officially"), not a moderation tool. It is a deliberate default
+  rather than an oversight. Say if you want it widened.
 - No per-guild feed URL (an RSS/Atom equivalent of `/?feed=mine`), and no
   combined feed across guilds with different sorts per guild.
 
@@ -371,9 +388,10 @@ If you are upgrading a live original-Ruqqus database rather than starting fresh:
    domain now comes from here, including e-mail links and the HTTP→HTTPS
    redirect.
 5. **Run `alembic upgrade head`.** The `0001_initial` migration creates the
-   schema from scratch and `0002_guilds` adds the guild tables on top; it is
-   not written against a pre-existing database. If you have data, you will
-   need to stamp and adapt.
+   schema from scratch, `0002_guilds` adds the guild tables on top, and
+   `0003_guild_pins` adds the per-guild pin column; it is not written against
+   a pre-existing database. If you have data, you will need to stamp and
+   adapt.
 6. **Drop `ips`, `dms`, `userflags`** if they are still present and you no
    longer need their contents. Keep `boards` — guilds use it now.
 7. **Re-point mail.** `MAILGUN_KEY` no longer does anything.
@@ -449,15 +467,22 @@ document said otherwise.
   They were among the routes listed as unguarded below. The shared `post()`
   helper in `default.html` has always sent the formkey, so the UI is
   unaffected.
+- **Guild moderators can now pin a post in their own guild.** A guild pin is a
+  new column, `submissions.guild_pinned`, with one slot per guild — deliberately
+  separate from `submissions.stickied`, which is a single site-wide slot that
+  heads the front page and is still `admin_level >= 3`. Widening `/api/sticky`
+  would have let a guild moderator knock the site announcement off the front
+  page. The two never touch each other. See
+  [§5.1](#51-guilds-what-is-historical-and-what-is-new).
 
 ### Missing core feature
 
 - **None outstanding.** Guilds (communities) were the one feature the source
   snapshot never had — the database had the hooks but the application had no
-  code for it. They are now built, including per-guild moderation and the
-  "my guilds" feed; see
+  code for it. They are now built, including per-guild moderation, guild pins,
+  and the "my guilds" feed; see
   [§5.1](#51-guilds-what-is-historical-and-what-is-new) for exactly what that
-  includes and the two smaller things still open.
+  includes and the smaller thing still open.
 
 ### Blocking
 

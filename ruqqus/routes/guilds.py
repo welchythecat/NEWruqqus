@@ -152,6 +152,12 @@ def guild_list(guild_id, sort="hot", page=1):
 
     ``guild_id`` is a plain argument, so it is part of the memoization key --
     two guilds cannot be handed each other's cached pages.
+
+    The guild's pinned post sorts first.  That is the same treatment the
+    site-wide sticky gets on the front page, and for the same reason: a pin
+    nobody sees at the top is not a pin.  Sorting it first is also what keeps
+    it off the later pages -- it is row 1, so page 2 onward can never reach
+    it, and it is not shown twice.
     """
     posts = db.query(Submission).filter(
         Submission.board_id == guild_id,
@@ -160,15 +166,25 @@ def guild_list(guild_id, sort="hot", page=1):
     )
 
     if sort == "hot":
-        posts = posts.order_by(text("submissions.rank_hot desc"))
+        posts = posts.order_by(
+            Submission.guild_pinned.desc(), text("submissions.rank_hot desc")
+        )
     elif sort == "new":
-        posts = posts.order_by(Submission.created_utc.desc())
+        posts = posts.order_by(
+            Submission.guild_pinned.desc(), Submission.created_utc.desc()
+        )
     elif sort == "disputed":
-        posts = posts.order_by(text("submissions.rank_fiery desc"))
+        posts = posts.order_by(
+            Submission.guild_pinned.desc(), text("submissions.rank_fiery desc")
+        )
     elif sort == "top":
-        posts = posts.order_by(text("submissions.score desc"))
+        posts = posts.order_by(
+            Submission.guild_pinned.desc(), text("submissions.score desc")
+        )
     elif sort == "activity":
-        posts = posts.order_by(text("submissions.rank_activity desc"))
+        posts = posts.order_by(
+            Submission.guild_pinned.desc(), text("submissions.rank_activity desc")
+        )
     else:
         abort(422)
 
